@@ -5,7 +5,6 @@ import geopandas as gpd # Para hacer cosas geográficas
 import seaborn as sns # Para hacer plots lindos
 import networkx as nx # Construcción de la red en NetworkX
 import scipy
-#Sacar esto, no creo que nos lo dejen usar
 from scipy.linalg import solve_triangular
 
 def construye_adyacencia(D,m):

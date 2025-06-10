@@ -1,3 +1,13 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd # Para leer archivos
+import geopandas as gpd # Para hacer cosas geográficas
+import seaborn as sns # Para hacer plots lindos
+import networkx as nx # Construcción de la red en NetworkX
+import scipy
+#Sacar esto, no creo que nos lo dejen usar
+from scipy.linalg import solve_triangular
+
 # Matriz A de ejemplo
 #A_ejemplo = np.array([
 #    [0, 1, 1, 1, 0, 0, 0, 0],
@@ -10,21 +20,57 @@
 #    [0, 0, 0, 0, 1, 1, 1, 0]
 #])
 
+# Funciones Auxiliares
+def calcular_matriz_K(A):
+  # Función para calcular la matriz de Grado para calcular C
+  # A: Matriz de adyacencia
+  # Retorna la matriz de grado K
+  K = np.zeros(A.shape)
+  for i in range(A.shape[0]):
+    K[i,i] = np.sum(A[i,:])
+  return K
 
+def simetrizacionDeA(A):
+    #La funcion recibe la matriz de adyaciencia A y la simetriza para evitar errores
+    return (A+A.transpose())/2
+
+# Funciones del TP
 def calcula_L(A):
     # La función recibe la matriz de adyacencia A y calcula la matriz laplaciana
     # Have fun!!
-    return L
+
+    #Primero Simetrizamos A para que ya este bien
+    A = simetrizacionDeA(A)
+
+    #Calculamos con la nueva A nuestra K
+    K = calcular_matriz_K(A)
+
+    #Devolvemos la Matriz L
+    return A-K
 
 def calcula_R(A):
     # La funcion recibe la matriz de adyacencia A y calcula la matriz de modularidad
     # Have fun!!
-    return R
+
+    #Primero Simetrizamos A para que ya este bien
+    A = simetrizacionDeA(A)
+
+    #Calculamos con la nueva A nuestra K
+    K = calcular_matriz_K(A)
+
+    #Calculemos 2E que es dos veces el numero de conexiones
+    doE = 2*sum(A)
+
+    #Con todo esto podemos calcular P
+    P = (K@K.transpose())/doE
+
+    #Devolvemos el R final
+    return A-P
 
 def calcula_lambda(L,v):
     # Recibe L y v y retorna el corte asociado
     # Have fun!
-    return lambdon
+    return (v.traspose()@L@v)/4
 
 def calcula_Q(R,v):
     # La funcion recibe R y s y retorna la modularidad (a menos de un factor 2E)
@@ -32,29 +78,39 @@ def calcula_Q(R,v):
 
 def metpot1(A,tol=1e-8,maxrep=np.Inf):
    # Recibe una matriz A y calcula su autovalor de mayor módulo, con un error relativo menor a tol y-o haciendo como mucho maxrep repeticiones
-   v = ... # Generamos un vector de partida aleatorio, entre -1 y 1
-   v = ... # Lo normalizamos
-   v1 = ... # Aplicamos la matriz una vez
-   v1 = ... # normalizamos
-   l = ... # Calculamos el autovector estimado
-   l1 = ... # Y el estimado en el siguiente paso
+   v = np.random.uniform(-1, 1, A.shape()[0]) # Generamos un vector de partida aleatorio, entre -1 y 1
+   v = v/np.linalg.norm(v,2) # Lo normalizamos hace falta?
+   v1 = A@v # Aplicamos la matriz una vez
+   v1 = v1/np.linalg.norm(v1,2)# normalizamos
+   
+   #Bruto, hacer
+   e = np.linalg.eig(v)
+   l = e[1][0] # Calculamos el autovector estimado
+   
+   e = np.linalg.eig(v1)
+   l1 = e[1][0] # Y el estimado en el siguiente paso
    nrep = 0 # Contador
    while np.abs(l1-l)/np.abs(l) > tol and nrep < maxrep: # Si estamos por debajo de la tolerancia buscada 
       v = v1 # actualizamos v y repetimos
       l = l1
-      v1 = ... # Calculo nuevo v1
-      v1 = ... # Normalizo
-      l1 = ... # Calculo autovector
+      v1 = A@v # Calculo nuevo v1
+      v1 = v1/np.linalg.norm(v1,2) # Normalizo
+      
+      #Brutoooo
+      e = np.linalg.eig(v1)
+      l1 = e[1][0] # Calculo autovector
       nrep += 1 # Un pasito mas
    if not nrep < maxrep:
       print('MaxRep alcanzado')
-   l = ... # Calculamos el autovalor
+   #Brutisimo
+   e = np.linalg.eig(v1)
+   l = e[1][0] # Calculamos el autovalor
    return v1,l,nrep<maxrep
 
 def deflaciona(A,tol=1e-8,maxrep=np.Inf):
     # Recibe la matriz A, una tolerancia para el método de la potencia, y un número máximo de repeticiones
     v1,l1,_ = metpot1(A,tol,maxrep) # Buscamos primer autovector con método de la potencia
-    deflA = ... # Sugerencia, usar la funcion outer de numpy
+    deflA = np.linalg.outer(l1,v1) # Sugerencia, usar la funcion outer de numpy
     return deflA
 
 def metpot2(A,v1,l1,tol=1e-8,maxrep=np.Inf):
