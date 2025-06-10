@@ -5,6 +5,8 @@ import geopandas as gpd # Para hacer cosas geográficas
 import seaborn as sns # Para hacer plots lindos
 import networkx as nx # Construcción de la red en NetworkX
 import scipy
+#Sacar esto, no creo que nos lo dejen usar
+from scipy.linalg import solve_triangular
 
 def construye_adyacencia(D,m):
     # Función que construye la matriz de adyacencia del grafo de museos
@@ -124,6 +126,46 @@ def calcular_matriz_invertida(A):
 
   return Inv
 
+# Correccion de funcion
+#< Nueva funcion para calcular la invertida de una matriz digonal eficientemente
+def invertida_de_matriz_diagonal(A):
+   # Calcula eficientemente la inversa de una matriz diagonal
+   # A: Matriz a invertir
+   # Retorna A invertida
+    n = len(A)
+    inversa = []
+
+    for i in range(n):
+        fila = []
+        for j in range(n):
+            if i == j:
+                fila.append(1 / A[i][j]) # Asumo que la entrada es correcta, sino deberia chequear que la diagonal no sea 0.
+            else:
+                fila.append(0)
+        inversa.append(fila)
+
+    return inversa
+
+#<
+def inversa_desde_LU(A):
+    # Función para calcular la matriz invertida a partir de la descomposicion LU de una Matriz
+    # A: Matriz a invertir
+    # Retorna la matriz A^-1
+    L, U = calculaLU(A)
+    n = L.shape[0]
+    I = np.eye(n)
+    inv_A = np.zeros((n, n))
+
+    for i in range(n):
+        # Resolvemos L y = e_i
+        y = solve_triangular(L, I[:, i], lower=True)
+        # Resolvemos U x = y
+        x = solve_triangular(U, y)
+        # Guardamos la columna resultante de la inversa
+        inv_A[:, i] = x
+
+    return inv_A
+
 def calcula_pagerank(A,alfa):
     # Función para calcular PageRank usando LU
     # A: Matriz de adyacencia
@@ -148,18 +190,33 @@ def calcula_matriz_C_continua(D):
 
     #> Esta es la forma desarrollada que esta bien pero es mas lenta. Con numpy quedaba mas rapido y corto usando 
     #> una ecuacion casi identica a la de la C original
-    for i in range(A.shape[0]):
-      dist_total = 0
+    #for i in range(A.shape[0]):
+    #  dist_total = 0
+    # Calculamos la distancia total de la fila
+    #  for j in range(A.shape[1]):
+    #    if (i != j):
+    #      dist_total += 1/A[i,j]
+    #
+    # USamos la distancia total para calcular el resto de distancias de la matriz
+    #  for j in range(A.shape[1]):
+    #    if (i != j):
+    #      C[j,i] = (1/A[i,j])/dist_total
 
-      # Calculamos la distancia total de la fila
-      for j in range(A.shape[1]):
-        if (i != j):
-          dist_total += 1/A[i,j]
+    #> una ecuacion casi identica a la de la C original
+    #< Ahora evitando los for explicitos usando numpy
 
-      # USamos la distancia total para calcular el resto de distancias de la matriz
-      for j in range(A.shape[1]):
-        if (i != j):
-          C[j,i] = (1/A[i,j])/dist_total
+    # Lleno la diagonal con inf para evitar dividir por 0
+    np.fill_diagonal(A, np.inf)
+
+    # Invertimos todas las distancias excepto la diagonal que queda en 0
+    inv_A = 1 / A
+
+    # Calculamos la distancia total de la fila
+    dist_total = inv_A.sum(axis=1)
+
+    # Normalizamos cada fila
+    # Transponemos porque el valor C[j, i] depende de A[i, j]
+    C = (inv_A.T / dist_total).T
 
     return C
 
@@ -241,3 +298,55 @@ def GraficoCiudad(A, ranking, museos, barrios):
   nx.draw_networkx_labels(G, G_layout, labels=labels, font_size=6, font_color="k") # Agregamos los nombres
 
   return principales
+
+def GraficoCiudadesPorConexiones(D, conexiones, museos, barrios, titulo, subtitulo, x, y):
+  # Funcion para graficar ranking con el mapa de la
+  # D: Matriz de adyacencia
+  # Ranking: Puntuacion de cada ciudad
+  # Museos y Barios: Variables para informacion Geografica
+  # Retorna: Valor del numero de condicion 1 de la matriz
+
+  #Creacion unica de variables de los graficos
+  puntuaciones = []
+  principales = []
+  G_layout = {i:v for i,v in enumerate(zip(museos.to_crs("EPSG:22184").get_coordinates()['x'],museos.to_crs("EPSG:22184").get_coordinates()['y']))}
+  factor_escala = 1e4 # Escalamos los nodos 10 mil veces para que sean bien visibles
+
+  # Crear una figura con x filas y y columnas
+  fig, axes = plt.subplots(x, y, figsize=(16, 16))
+
+  # Título principal
+  fig.suptitle(titulo, fontsize=16, fontweight='bold')
+
+  for i in range(0,x):
+     for j in range(0,y):
+      posicion = i+j+(x-1)*i 
+
+
+      A = construye_adyacencia(D,conexiones[posicion])
+      
+      G = nx.from_numpy_array(A) # Construimos la red a partir de la matriz de adyacencia
+      barrios.to_crs("EPSG:22184").boundary.plot(color='gray', ax=axes[i,j]) # Graficamos Los barrios
+      pr = calcula_pagerank(A, 0.2)  #Este va a ser su score Page Rank. Ahora lo reemplazamos con un vector al azar
+
+      pr = pr/pr.sum() # Normalizamos para que sume 1
+      puntuaciones.append(pr[0])
+      Nprincipales = 3 # Cantidad de principales
+
+      if len(pr.shape) == 2:
+        pr = pr[0]
+
+
+      principales = np.concatenate((principales, np.argsort(pr)[-Nprincipales:]))
+      labels = {n: str(n) if i in principales else "" for i, n in enumerate(G.nodes)} # Nombres para esos nodos
+
+      nx.draw_networkx(G,G_layout,ax = axes[i,j],node_size = pr*factor_escala,with_labels=False)
+      axes[i, j].set_title(subtitulo + str(conexiones[posicion]))
+
+  # Ajustar el espacio entre los subgráficos
+  plt.tight_layout(rect=[0, 0, 1, 0.96])
+
+  # Mostrar la figura
+  plt.show()
+
+  return puntuaciones,np.array(list(set(principales)))
