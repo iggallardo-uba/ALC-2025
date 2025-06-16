@@ -50,6 +50,52 @@ def valor_E(A):
     
     return sum(A)
 
+# Funcion de Inversion
+def calculaLU(A):
+    # matriz es una matriz de NxN
+    # Retorna la factorización LU a través de una lista con dos matrices L y U de NxN.
+    m=A.shape[0]
+    n=A.shape[1]
+    Ac = A.copy()
+
+    # Chequeanos que la matriz es cuadrada
+    if m!=n:
+        print('Matriz no cuadrada')
+        return
+
+    # Una vez que sabemos que la matriz esta bien, empezamos a calular la Factorizacion
+    for j in range(n):
+        for i in range(j+1, n):
+            l = Ac[i,j]/Ac[j,j]
+            Ac[i,j:] = Ac[i,j:] - l * Ac[j,j:]
+            Ac[i,j] = l
+
+    
+    # Con la factorizacion hecha, asignamos nuestra L y U como corresponda
+    L = np.tril(Ac,-1) + np.eye(m)
+    U = np.triu(Ac)
+
+    return L, U
+
+def inversa_desde_LU(A):
+    # Función para calcular la matriz invertida a partir de la descomposicion LU de una Matriz
+    # A: Matriz a invertir
+    # Retorna la matriz A^-1
+    L, U = calculaLU(A)
+    n = L.shape[0]
+    I = np.eye(n)
+    inv_A = np.zeros((n, n))
+
+    for i in range(n):
+        # Resolvemos L y = e_i
+        y = solve_triangular(L, I[:, i], lower=True)
+        # Resolvemos U x = y
+        x = solve_triangular(U, y)
+        # Guardamos la columna resultante de la inversa
+        inv_A[:, i] = x
+
+    return inv_A
+
 # Funciones del TP
 def calcula_L(A):
     # La función recibe la matriz de adyacencia A y calcula la matriz laplaciana
@@ -98,42 +144,48 @@ def calcula_Q(R,v):
 
 def metpot1(A,tol=1e-8,maxrep=np.Inf):
    # Recibe una matriz A y calcula su autovalor de mayor módulo, con un error relativo menor a tol y-o haciendo como mucho maxrep repeticiones
-   v = np.random.uniform(-1, 1, A.shape()[0]) # Generamos un vector de partida aleatorio, entre -1 y 1
-   v = v/np.linalg.norm(v,2) # Lo normalizamos hace falta?
+   v = np.random.uniform(low=-1.0, high=1.0, size=A.shape[0]) # Generamos un vector de partida aleatorio, entre -1 y 1
+   v = v/np.linalg.norm(v) # Lo normalizamos
+   #print(v)
    v1 = A@v # Aplicamos la matriz una vez
-   v1 = v1/np.linalg.norm(v1,2)# normalizamos
+   v1 = v1/np.linalg.norm(v1)# normalizamos
+   #print(v1)
+   l = (v.transpose()@A@v) # Calculamos el autovector estimado
+   #print("Valor primer l: " + str(l))
+   l1 = (v1.transpose()@v1) # Y el estimado en el siguiente paso
+   #print("Valor segundo l: " + str(l1))
    
-   #Bruto, hacer
-   e = np.linalg.eig(v)
-   l = e[1][0] # Calculamos el autovector estimado
-   
-   e = np.linalg.eig(v1)
-   l1 = e[1][0] # Y el estimado en el siguiente paso
    nrep = 0 # Contador
+   
    while np.abs(l1-l)/np.abs(l) > tol and nrep < maxrep: # Si estamos por debajo de la tolerancia buscada 
+      #print("repe num: " + str(nrep))
+      
       v = v1 # actualizamos v y repetimos
       l = l1
+      #print(v)
+      #print("Valor primer l: " + str(l))
       v1 = A@v # Calculo nuevo v1
-      v1 = v1/np.linalg.norm(v1,2) # Normalizo
-      
-      #Brutoooo
-      e = np.linalg.eig(v1)
-      l1 = e[1][0] # Calculo autovector
+      v1 = v1/np.linalg.norm(v1) # Normalizo
+      l1 = v1.transpose()@A@v1 # Calculo autovector
+      #print(v1)
+      #print("Valor segundo l: " + str(l1))
       nrep += 1 # Un pasito mas
+   
    if not nrep < maxrep:
       print('MaxRep alcanzado')
-   #Brutisimo
-   e = np.linalg.eig(v1)
-   l = e[1][0] # Calculamos el autovalor
+   
+   l = v1.transpose()@A@v1 # Calculamos el autovalor
    return v1,l,nrep<maxrep
 
 def deflaciona(A,tol=1e-8,maxrep=np.Inf):
     # Recibe la matriz A, una tolerancia para el método de la potencia, y un número máximo de repeticiones
     v1,l1,_ = metpot1(A,tol,maxrep) # Buscamos primer autovector con método de la potencia
-    deflA = np.linalg.outer(l1,v1) # Sugerencia, usar la funcion outer de numpy
+    
+    deflA = A - l1 * np.outer(v1, v1) # Sugerencia, usar la funcion outer de numpy
+
     return deflA
 
-def metpot2(A,v1,l1,tol=1e-8,maxrep=np.Inf):
+def metpot2(A,tol=1e-8,maxrep=np.Inf):
    # La funcion aplica el metodo de la potencia para buscar el segundo autovalor de A, suponiendo que sus autovectores son ortogonales
    # v1 y l1 son los primeors autovectores y autovalores de A}
    # Have fun!
@@ -144,16 +196,16 @@ def metpot2(A,v1,l1,tol=1e-8,maxrep=np.Inf):
 
 def metpotI(A,mu,tol=1e-8,maxrep=np.Inf):
     # Retorna el primer autovalor de la inversa de A + mu * I, junto a su autovector y si el método convergió.
-    return metpot1(...,tol=tol,maxrep=maxrep)
+    return metpot1(inversa_desde_LU(A + np.eye(A.shape[0]) * mu),tol=tol,maxrep=maxrep)
 
 def metpotI2(A,mu,tol=1e-8,maxrep=np.Inf):
    # Recibe la matriz A, y un valor mu y retorna el segundo autovalor y autovector de la matriz A, 
    # suponiendo que sus autovalores son positivos excepto por el menor que es igual a 0
    # Retorna el segundo autovector, su autovalor, y si el metodo llegó a converger.
-   X = ... # Calculamos la matriz A shifteada en mu
-   iX = ... # La invertimos
-   defliX = ... # La deflacionamos
-   v,l,_ =  ... # Buscamos su segundo autovector
+   X = A + np.eye(A.shape[0]) * mu # Calculamos la matriz A shifteada en mu
+   iX = inversa_desde_LU(X) # La invertimos
+   defliX = deflaciona(iX,tol=1e-8,maxrep=np.Inf) # La deflacionamos
+   v,l,_ =  metpot2(defliX) # Buscamos su segundo autovector
    l = 1/l # Reobtenemos el autovalor correcto
    l -= mu
    return v,l,_
@@ -169,7 +221,7 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
         return([nombres_s])
     else: # Sino:
         L = calcula_L(A) # Recalculamos el L
-        v,l,_ = ... # Encontramos el segundo autovector de L
+        v,l,_ = metpotI2(L) # Encontramos el segundo autovector de L
         # Recortamos A en dos partes, la que está asociada a el signo positivo de v y la que está asociada al negativo
         Ap = ... # Asociado al signo positivo
         Am = ... # Asociado al signo negativo
@@ -197,7 +249,7 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
     if R.shape[0] == 1: # Si llegamos al último nivel
         return(...)
     else:
-        v,l,_ = ... # Primer autovector y autovalor de R
+        v,l,_ = metpot1(R) # Primer autovector y autovalor de R
         # Modularidad Actual:
         Q0 = np.sum(R[v>0,:][:,v>0]) + np.sum(R[v<0,:][:,v<0])
         if Q0<=0 or all(v>0) or all(v<0): # Si la modularidad actual es menor a cero, o no se propone una partición, terminamos
