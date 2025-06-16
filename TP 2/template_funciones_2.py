@@ -34,13 +34,29 @@ def simetrizacionDeA(A):
     #La funcion recibe la matriz de adyaciencia A y la simetriza para evitar errores
     return (A+A.transpose())/2
 
+def vector_s(v):
+    # funcion para calcular vector s tal que el signo del v es el valor de cada s
+    # v = Autovector de la matriz
+    # Retorna el vector s
+
+    s = v*(1/np.absolute(v)) # Asumo no valores 0
+
+    return s
+
+def valor_E(A):
+    # Funcion que calcula cantidad de conexiones en A
+    # A = Matriz de Adiencencia
+    # Retorna el valor E
+    
+    return sum(A)
+
 # Funciones del TP
 def calcula_L(A):
     # La función recibe la matriz de adyacencia A y calcula la matriz laplaciana
     # Have fun!!
 
     #Primero Simetrizamos A para que ya este bien
-    A = simetrizacionDeA(A)
+    #A = simetrizacionDeA(A)
 
     #Calculamos con la nueva A nuestra K
     K = calcular_matriz_K(A)
@@ -53,27 +69,37 @@ def calcula_R(A):
     # Have fun!!
 
     #Primero Simetrizamos A para que ya este bien
-    A = simetrizacionDeA(A)
+    #A = simetrizacionDeA(A)
 
-    #Calculamos con la nueva A nuestra K
+    #Calculamos nuestra K y E
     K = calcular_matriz_K(A)
-
-    #Calculemos 2E que es dos veces el numero de conexiones
-    doE = 2*sum(A)
+    E = valor_E(A)
 
     #Con todo esto podemos calcular P
-    P = (K@K.transpose())/doE
+    P = (K@K.transpose())/(2*E)
 
     #Devolvemos el R final
     return A-P
 
 def calcula_lambda(L,v):
     # Recibe L y v y retorna el corte asociado
-    # Have fun!
-    return (v.traspose()@L@v)/4
+    
+    s = vector_s(v)
+    
+    return (s.traspose()@L@s)/4
 
 def calcula_Q(R,v):
     # La funcion recibe R y s y retorna la modularidad (a menos de un factor 2E)
+    
+    #Calculemos s de v
+    s = vector_s(v)
+    
+    # Calculemos Q
+    # Q =
+    
+    # Calcules Q optimizada
+    Q = s.transpose()@R@s
+    
     return Q
 
 def metpot1(A,tol=1e-8,maxrep=np.Inf):
@@ -117,6 +143,8 @@ def metpot2(A,v1,l1,tol=1e-8,maxrep=np.Inf):
    # La funcion aplica el metodo de la potencia para buscar el segundo autovalor de A, suponiendo que sus autovectores son ortogonales
    # v1 y l1 son los primeors autovectores y autovalores de A}
    # Have fun!
+   deflA = deflaciona(A, tol, maxrep)
+   
    return metpot1(deflA,tol,maxrep)
 
 
