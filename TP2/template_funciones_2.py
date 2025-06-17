@@ -295,12 +295,21 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
             
             return [Rp,Rm]
         else:
-            ## Hacemos como con L, pero usando directamente R para poder mantener siempre la misma matriz de modularidad
+            # Hacemos como con L, pero usando directamente R para poder mantener siempre la misma matriz de modularidad
             Rp = [nombres_s[i] for i in range(len(v)) if v[i] == 1] # Parte de R asociada a los valores positivos de v
             Rm = [nombres_s[i] for i in range(len(v)) if v[i] == -1] # Parte asociada a los valores negativos de v
             
-            vp,lp,_ = metpot1(Rp)  # autovector principal de Rp
-            vm,lm,_ = metpot1(Rm) # autovector principal de Rm
+            # Ahora con los grupos subdividimos
+            ARp = A[np.ix_(v == 1, v == 1)]
+            ARm = A[np.ix_(v == -1, v == -1)]
+            
+            #Calculamos R correspondientes
+            RRp = calcula_R(ARp)
+            RRm = calcula_R(ARm)
+            
+            #Calculamos sus autovectores
+            vp,lp,_ = metpot1(RRp)  # autovector principal de Rp
+            vm,lm,_ = metpot1(RRm) # autovector principal de Rm
         
             # Arreglamos los autovectores
             vp = np.where(vp > 0, 1, -1)
@@ -309,17 +318,12 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
             # Calculamos el cambio en Q que se produciría al hacer esta partición
             Q1 = 0
             if not all(vp>0) or all(vp<0):
-               Q1 = np.sum(Rp[vp>0,:][:,vp>0]) + np.sum(Rp[vp<0,:][:,vp<0])
+               Q1 = np.sum(RRp[vp>0,:][:,vp>0]) + np.sum(RRp[vp<0,:][:,vp<0])
             if not all(vm>0) or all(vm<0):
-                Q1 += np.sum(Rm[vm>0,:][:,vm>0]) + np.sum(Rm[vm<0,:][:,vm<0])
+                Q1 += np.sum(RRm[vm>0,:][:,vm>0]) + np.sum(RRm[vm<0,:][:,vm<0])
             if Q0 >= Q1: # Si al partir obtuvimos un Q menor, devolvemos la última partición que hicimos
                 return([[ni for ni,vi in zip(nombres_s,v) if vi>0],[ni for ni,vi in zip(nombres_s,v) if vi<0]])
             else:
-                # Sino, repetimos para los subniveles
-                # Creamos los subniveles
-                A1 = A[np.ix_(v == 1, v == 1)]
-                A2 = A[np.ix_(v == -1, v == -1)]
-                
-                # Ahora los analizamos
-                return modularidad_iterativo(A1, Rp) +modularidad_iterativo(A2, Rm)
+                # Sino, repetimos para los subniveles creados
+                return modularidad_iterativo(ARp, Rp) +modularidad_iterativo(ARm, Rm)
 
