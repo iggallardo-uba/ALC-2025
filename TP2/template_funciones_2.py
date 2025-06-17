@@ -196,7 +196,18 @@ def metpot2(A,tol=1e-8,maxrep=np.Inf):
 
 def metpotI(A,mu,tol=1e-8,maxrep=np.Inf):
     # Retorna el primer autovalor de la inversa de A + mu * I, junto a su autovector y si el método convergió.
-    return metpot1(inversa_desde_LU(A + np.eye(A.shape[0]) * mu),tol=tol,maxrep=maxrep)
+    # Realizamos el shift y vemos LU
+    
+    M = A - np.eye(A.shape[0]) * mu
+    
+    Minv = inversa_desde_LU(M)
+    
+    v,l,_ = metpot1(Minv,tol=tol,maxrep=maxrep)
+    
+    l = 1/l # Reobtenemos el autovalor correcto
+    l -= mu
+    
+    return v,l,_
 
 def metpotI2(A,mu,tol=1e-8,maxrep=np.Inf):
    # Recibe la matriz A, y un valor mu y retorna el segundo autovalor y autovector de la matriz A, 
@@ -205,7 +216,7 @@ def metpotI2(A,mu,tol=1e-8,maxrep=np.Inf):
    X = A + np.eye(A.shape[0]) * mu # Calculamos la matriz A shifteada en mu
    iX = inversa_desde_LU(X) # La invertimos
    defliX = deflaciona(iX,tol=1e-8,maxrep=np.Inf) # La deflacionamos
-   v,l,_ =  metpot2(defliX) # Buscamos su segundo autovector
+   v,l,_ =  metpotI(defliX, mu) # Buscamos su segundo autovector
    l = 1/l # Reobtenemos el autovalor correcto
    l -= mu
    return v,l,_
@@ -247,20 +258,47 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
         nombres_s = range(R.shape[0])
     # Acá empieza lo bueno
     if R.shape[0] == 1: # Si llegamos al último nivel
-        return(...)
+        return [nombres_s]
     else:
+        print("Primera R:")
+        print(R)
+        print("autoval: " + str(np.linalg.eigvals(R)))
+        #print("autovectores")
+        #print(np.linalg.eig(R)[1]) 
+        
         v,l,_ = metpot1(R) # Primer autovector y autovalor de R
+        
+        print("Primer autovector:" + str(v))
+        print("Primer Autovalor: " + str(l))
+        print("Separacion: " + str(nombres_s))
+        
         # Modularidad Actual:
         Q0 = np.sum(R[v>0,:][:,v>0]) + np.sum(R[v<0,:][:,v<0])
+        
+        # Separamos los valores de las comunidades
+        v = np.where(v > 0, 1, -1)
+        
+        print(Q0)
         if Q0<=0 or all(v>0) or all(v<0): # Si la modularidad actual es menor a cero, o no se propone una partición, terminamos
-            return(...)
+            print("Modularidad Adecuada")
+            #Separamos y devolvemos
+            
+            Rp = [nombres_s[i] for i in range(len(v)) if v[i] == 1] # Parte de R asociada a los valores positivos de v
+            Rm = [nombres_s[i] for i in range(len(v)) if v[i] == -1] # Parte asociada a los valores negativos de v
+            
+            return [Rp,Rm]
         else:
             ## Hacemos como con L, pero usando directamente R para poder mantener siempre la misma matriz de modularidad
-            Rp = ... # Parte de R asociada a los valores positivos de v
-            Rm = ... # Parte asociada a los valores negativos de v
-            vp,lp,_ = ...  # autovector principal de Rp
-            vm,lm,_ = ... # autovector principal de Rm
+            Rp = [nombres_s[i] for i in range(len(v)) if v[i] == 1] # Parte de R asociada a los valores positivos de v
+            Rm = [nombres_s[i] for i in range(len(v)) if v[i] == -1] # Parte asociada a los valores negativos de v
+            
+            vp,lp,_ = metpot1(Rp)  # autovector principal de Rp
+            vm,lm,_ = metpot1(Rm) # autovector principal de Rm
         
+            # Arreglamos los autovectores
+            vp = np.where(vp > 0, 1, -1)
+            vm = np.where(vm > 0, 1, -1)
+
             # Calculamos el cambio en Q que se produciría al hacer esta partición
             Q1 = 0
             if not all(vp>0) or all(vp<0):
@@ -271,5 +309,11 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
                 return([[ni for ni,vi in zip(nombres_s,v) if vi>0],[ni for ni,vi in zip(nombres_s,v) if vi<0]])
             else:
                 # Sino, repetimos para los subniveles
-                return(...)
+                
+                #Creamos los subniveles
+                A1 = A[np.ix_(v == 1, v == 1)]
+                A2 = A[np.ix_(v == -1, v == -1)]
+                
+                #ahora los analizamos
+                return modularidad_iterativo(A1, Rp) + modularidad_iterativo(A2, Rm)
 
