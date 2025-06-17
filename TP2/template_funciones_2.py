@@ -178,19 +178,18 @@ def metpot1(A,tol=1e-8,maxrep=np.Inf):
    
    return v1,l1,nrep<maxrep
 
-def deflaciona(A,tol=1e-8,maxrep=np.Inf):
+def deflaciona(A, v, l, tol=1e-8,maxrep=np.Inf):
     # Recibe la matriz A, una tolerancia para el método de la potencia, y un número máximo de repeticiones
-    v1,l1,_ = metpot1(A,tol,maxrep) # Buscamos primer autovector con método de la potencia
-    
-    deflA = A - l1 * np.outer(v1, v1) # Sugerencia, usar la funcion outer de numpy
+    deflA = A - l * np.outer(v, v) # Sugerencia, usar la funcion outer de numpy
 
     return deflA
 
 def metpot2(A,tol=1e-8,maxrep=np.Inf):
    # La funcion aplica el metodo de la potencia para buscar el segundo autovalor de A, suponiendo que sus autovectores son ortogonales
    # v1 y l1 son los primeors autovectores y autovalores de A}
-   # Have fun!
-   deflA = deflaciona(A, tol, maxrep)
+   v,l,_ = metpot1(A)
+   
+   deflA = deflaciona(A,v,l tol, maxrep)
    
    return metpot1(deflA,tol,maxrep)
 
@@ -199,13 +198,12 @@ def metpotI(A,mu,tol=1e-8,maxrep=np.Inf):
     # Realizamos el shift y vemos LU
     
     M = A - np.eye(A.shape[0]) * mu
-    
     Minv = inversa_desde_LU(M)
     
     v,l,_ = metpot1(Minv,tol=tol,maxrep=maxrep)
     
-    l = 1/l # Reobtenemos el autovalor correcto
-    l -= mu
+    # Recuperemos el autovalor
+    l = mu + 1/l
     
     return v,l,_
 
@@ -215,10 +213,13 @@ def metpotI2(A,mu,tol=1e-8,maxrep=np.Inf):
    # Retorna el segundo autovector, su autovalor, y si el metodo llegó a converger.
    X = A + np.eye(A.shape[0]) * mu # Calculamos la matriz A shifteada en mu
    iX = inversa_desde_LU(X) # La invertimos
-   defliX = deflaciona(iX,tol=1e-8,maxrep=np.Inf) # La deflacionamos
+   
+   #Calculemos los mas chicos
+   v,l,_ = metpotI(A, mu)
+   
+   defliX = deflaciona(iX,v,l,tol=1e-8,maxrep=np.Inf) # La deflacionamos
    v,l,_ =  metpotI(defliX, mu) # Buscamos su segundo autovector
-   l = 1/l # Reobtenemos el autovalor correcto
-   l -= mu
+   l = mu + 1/l # Reobtenemos el autovalor correcto
    return v,l,_
 
 
@@ -233,9 +234,13 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
     else: # Sino:
         L = calcula_L(A) # Recalculamos el L
         v,l,_ = metpotI2(L) # Encontramos el segundo autovector de L
+        
+        #Normalizamos v
+        v = np.where(v > 0, 1, -1)
+        
         # Recortamos A en dos partes, la que está asociada a el signo positivo de v y la que está asociada al negativo
-        Ap = ... # Asociado al signo positivo
-        Am = ... # Asociado al signo negativo
+        Ap = A[np.ix_(v == 1, v == 1)] # Asociado al signo positivo
+        Am = A[np.ix_(v == -1, v == -1)] # Asociado al signo negativo
         
         return(
                 laplaciano_iterativo(Ap,niveles-1,
@@ -260,29 +265,29 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
     if R.shape[0] == 1: # Si llegamos al último nivel
         return [nombres_s]
     else:
-        print("Primera R:")
-        print(R)
-        print("autoval: " + str(np.linalg.eig(R)[0]))
-        print("autovectores")
-        print(np.linalg.eig(R)[1]) 
+        #print("Primera R:")
+        #print(R)
+        #print("autoval: " + str(np.linalg.eig(R)[0]))
+        #print("autovectores")
+        #print(np.linalg.eig(R)[1]) 
         
         v,l,_ = metpot1(R) # Primer autovector y autovalor de R
         
-        print("Primer autovector:" + str(v))
-        print("Primer Autovalor: " + str(l))
-        print("Separacion: " + str(nombres_s))
+        #print("Primer autovector:" + str(v))
+        #print("Primer Autovalor: " + str(l))
+        #print("Separacion: " + str(nombres_s))
         
         # Modularidad Actual:
         Q0 = np.sum(R[v>0,:][:,v>0]) + np.sum(R[v<0,:][:,v<0])
-        print("la que estaba: " + str(Q0))
+        #print("la que estaba: " + str(Q0))
         
         #Con funcion
         Q0f = calcula_Q(R,v)
-        print("funcion: " + str(Q0f))
+        #print("funcion: " + str(Q0f))
         
         # Separamos los valores de las comunidades
         v = np.where(v > 0, 1, -1)
-        print("Separaciones: " + str(v))
+        #print("Separaciones: " + str(v))
         
         # Valor Modularidad
         #print(Q0)
