@@ -22,13 +22,16 @@ from scipy.linalg import solve_triangular
 
 # Funciones Auxiliares
 def calcular_matriz_K(A):
-  # Función para calcular la matriz de Grado para calcular C
-  # A: Matriz de adyacencia
-  # Retorna la matriz de grado K
-  K = np.zeros(A.shape)
-  for i in range(A.shape[0]):
-    K[i,i] = np.sum(A[i,:])
-  return K
+    # Función para calcular la matriz de Grado para calcular C
+    # A: Matriz de adyacencia
+    # Retorna la matriz de grado K
+    #K = np.zeros(A.shape)
+    #for i in range(A.shape[0]):
+    #  K[i,i] = np.sum(A[i,:])
+    #return K
+
+    # Nuevo
+    return np.sum(A, axis=1, keepdims=True)
 
 def simetrizacionDeA(A):
     #La funcion recibe la matriz de adyaciencia A y la simetriza para evitar errores
@@ -43,12 +46,12 @@ def vector_s(v):
 
     return s
 
-def valor_E(A):
+def valor_2E(A):
     # Funcion que calcula cantidad de conexiones en A
     # A = Matriz de Adiencencia
     # Retorna el valor E
     
-    return sum(A)
+    return sum(sum(A))
 
 # Funcion de Inversion
 def calculaLU(A):
@@ -113,10 +116,12 @@ def calcula_R(A):
 
     #Calculamos nuestra K y E
     K = calcular_matriz_K(A)
-    E = valor_E(A)
+    #print("Grado: " + str(K))
+    div = valor_2E(A)
+    #print("Divisor: " + str(div))
 
     #Con todo esto podemos calcular P
-    P = (K@K.transpose())/(2*E)
+    P = (K @ K.transpose())/div
 
     #Devolvemos el R final
     return A-P
@@ -134,9 +139,6 @@ def calcula_Q(R,v):
     #Calculemos s de v
     s = vector_s(v)
     
-    # Calculemos Q
-    # Q =
-    
     # Calcules Q optimizada
     Q = s.transpose()@R@s
     
@@ -152,7 +154,7 @@ def metpot1(A,tol=1e-8,maxrep=np.Inf):
    #print(v1)
    l = (v.transpose()@A@v) # Calculamos el autovector estimado
    #print("Valor primer l: " + str(l))
-   l1 = (v1.transpose()@v1) # Y el estimado en el siguiente paso
+   l1 = (v1.transpose()@A@v1) # Y el estimado en el siguiente paso
    #print("Valor segundo l: " + str(l1))
    
    nrep = 0 # Contador
@@ -174,8 +176,7 @@ def metpot1(A,tol=1e-8,maxrep=np.Inf):
    if not nrep < maxrep:
       print('MaxRep alcanzado')
    
-   l = v1.transpose()@A@v1 # Calculamos el autovalor
-   return v1,l,nrep<maxrep
+   return v1,l1,nrep<maxrep
 
 def deflaciona(A,tol=1e-8,maxrep=np.Inf):
     # Recibe la matriz A, una tolerancia para el método de la potencia, y un número máximo de repeticiones
@@ -192,7 +193,6 @@ def metpot2(A,tol=1e-8,maxrep=np.Inf):
    deflA = deflaciona(A, tol, maxrep)
    
    return metpot1(deflA,tol,maxrep)
-
 
 def metpotI(A,mu,tol=1e-8,maxrep=np.Inf):
     # Retorna el primer autovalor de la inversa de A + mu * I, junto a su autovector y si el método convergió.
@@ -250,7 +250,7 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
     # Retorna una lista con conjuntos de nodos representando las comunidades.
 
     if A is None and R is None:
-        print('Dame una matriz')
+        #print('Dame una matriz')
         return(np.nan)
     if R is None:
         R = calcula_R(A)
@@ -262,9 +262,9 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
     else:
         print("Primera R:")
         print(R)
-        print("autoval: " + str(np.linalg.eigvals(R)))
-        #print("autovectores")
-        #print(np.linalg.eig(R)[1]) 
+        print("autoval: " + str(np.linalg.eig(R)[0]))
+        print("autovectores")
+        print(np.linalg.eig(R)[1]) 
         
         v,l,_ = metpot1(R) # Primer autovector y autovalor de R
         
@@ -274,15 +274,22 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
         
         # Modularidad Actual:
         Q0 = np.sum(R[v>0,:][:,v>0]) + np.sum(R[v<0,:][:,v<0])
+        print("la que estaba: " + str(Q0))
+        
+        #Con funcion
+        Q0f = calcula_Q(R,v)
+        print("funcion: " + str(Q0f))
         
         # Separamos los valores de las comunidades
         v = np.where(v > 0, 1, -1)
+        print("Separaciones: " + str(v))
         
-        print(Q0)
+        # Valor Modularidad
+        #print(Q0)
         if Q0<=0 or all(v>0) or all(v<0): # Si la modularidad actual es menor a cero, o no se propone una partición, terminamos
             print("Modularidad Adecuada")
-            #Separamos y devolvemos
             
+            # Separamos y devolvemos los grupos
             Rp = [nombres_s[i] for i in range(len(v)) if v[i] == 1] # Parte de R asociada a los valores positivos de v
             Rm = [nombres_s[i] for i in range(len(v)) if v[i] == -1] # Parte asociada a los valores negativos de v
             
@@ -309,11 +316,10 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
                 return([[ni for ni,vi in zip(nombres_s,v) if vi>0],[ni for ni,vi in zip(nombres_s,v) if vi<0]])
             else:
                 # Sino, repetimos para los subniveles
-                
-                #Creamos los subniveles
+                # Creamos los subniveles
                 A1 = A[np.ix_(v == 1, v == 1)]
                 A2 = A[np.ix_(v == -1, v == -1)]
                 
-                #ahora los analizamos
-                return modularidad_iterativo(A1, Rp) + modularidad_iterativo(A2, Rm)
+                # Ahora los analizamos
+                return modularidad_iterativo(A1, Rp) +modularidad_iterativo(A2, Rm)
 
