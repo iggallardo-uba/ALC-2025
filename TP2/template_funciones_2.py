@@ -5,7 +5,6 @@ import geopandas as gpd # Para hacer cosas geográficas
 import seaborn as sns # Para hacer plots lindos
 import networkx as nx # Construcción de la red en NetworkX
 import scipy
-#Sacar esto, no creo que nos lo dejen usar
 from scipy.linalg import solve_triangular
 
 # Matriz A de ejemplo
@@ -28,10 +27,11 @@ def calcular_matriz_K(A):
     #K = np.zeros(A.shape)
     #for i in range(A.shape[0]):
     #  K[i,i] = np.sum(A[i,:])
-    #return K
+    
+    return np.diag(np.sum(A, axis=1))
 
-    # Nuevo
-    return np.sum(A, axis=1, keepdims=True)
+def calcular_vector_K(A):
+    return np.diag(calcular_matriz_K(A))
 
 def simetrizacionDeA(A):
     #La funcion recibe la matriz de adyaciencia A y la simetriza para evitar errores
@@ -115,20 +115,20 @@ def calcula_L(A):
     K = calcular_matriz_K(A)
 
     #Devolvemos la Matriz L
-    return A-K
+    return K - A
 
 def calcula_R(A):
     # La funcion recibe la matriz de adyacencia A y calcula la matriz de modularidad
     # Have fun!!
 
     #Calculamos nuestra K y E
-    K = calcular_matriz_K(A)
+    K = calcular_vector_K(A)
     #print("Grado: " + str(K))
     div = valor_2E(A)
     #print("Divisor: " + str(div))
 
     #Con todo esto podemos calcular P
-    P = (K @ K.transpose())/div
+    P = np.outer(K,K)/div
 
     #Devolvemos el R final
     return A-P
@@ -151,7 +151,7 @@ def calcula_Q(R,v):
     
     return Q
 
-def metpot1(A,tol=1e-8,maxrep=np.Inf):
+def metpot1(A,tol=1e-8,maxrep=np.inf):
    # Recibe una matriz A y calcula su autovalor de mayor módulo, con un error relativo menor a tol y-o haciendo como mucho maxrep repeticiones
    v = np.random.uniform(low=-1.0, high=1.0, size=A.shape[0]) # Generamos un vector de partida aleatorio, entre -1 y 1
    v = v/np.linalg.norm(v) # Lo normalizamos
@@ -172,12 +172,12 @@ def metpot1(A,tol=1e-8,maxrep=np.Inf):
       v = v1 # actualizamos v y repetimos
       l = l1
       #print(v)
-      #print("Valor primer l: " + str(l))
+      print("Valor primer l: " + str(l))
       v1 = A@v # Calculo nuevo v1
       v1 = v1/np.linalg.norm(v1) # Normalizo
       l1 = (v1.transpose()@A@v1)/(v1.transpose()@v1) # Calculo autovector
       #print(v1)
-      #print("Valor segundo l: " + str(l1))
+      print("Valor segundo l: " + str(l1))
       nrep += 1 # Un pasito mas
    
    if not nrep < maxrep:
@@ -185,13 +185,13 @@ def metpot1(A,tol=1e-8,maxrep=np.Inf):
    
    return v1,l1,nrep<maxrep
 
-def deflaciona(A, v, l, tol=1e-8,maxrep=np.Inf):
+def deflaciona(A, v, l, tol=1e-8,maxrep=np.inf):
     # Recibe la matriz A, una tolerancia para el método de la potencia, y un número máximo de repeticiones
     deflA = A - l * np.outer(v, v) # Sugerencia, usar la funcion outer de numpy
 
     return deflA
 
-def metpot2(A,tol=1e-6,maxrep=np.Inf):
+def metpot2(A,tol=1e-8,maxrep=np.inf):
    # La funcion aplica el metodo de la potencia para buscar el segundo autovalor de A, suponiendo que sus autovectores son ortogonales
    # v1 y l1 son los primeors autovectores y autovalores de A}
    v,l,_ = metpot1(A)
@@ -200,58 +200,31 @@ def metpot2(A,tol=1e-6,maxrep=np.Inf):
    
    return metpot1(deflA,tol,maxrep)
 
-def metpotI(A,mu=0.0,tol=1e-6,maxrep=np.Inf):
+def metpotI(A,mu=0.0,tol=1e-8,maxrep=np.inf):
     # Retorna el primer autovalor de la inversa de A - mu * I, junto a su autovector y si el método convergió.
-    # Realizamos el shift y vemos LU
-    M = inversa_desde_LU(A - np.eye(A.shape[0]) * mu)
-    print("Condicion: " + str(np.linalg.cond(A - np.eye(A.shape[0]) * mu)))
     
-    v = np.random.rand(A.shape[0])
-    v /= np.linalg.norm(v)
-
-    l = 0.0
-    nrep = 0
+    # Primero calculemos el shifteo
+    Ainv = inversa_desde_LU(A + np.eye(A.shape[0]) * mu)
     
-    while nrep < maxrep:
-        v1 = M @ v
-        v1 /= np.linalg.norm(v1)
-
-        # Rayleigh quotient on inverse matrix
-        l1 = v1.transpose() @ M @ v1
-
-        print("l: " + str(l))
-        print("l1: " + str(l1))
-        print("v:")
-        print(v)
-        print("v1:")
-        print(v1)
-        print("------------")
-
-        if abs(l1 - l) < tol:
-            break
-
-        v = v1
-        l = l1
-        
-    # Recuperamos el nuevo autovalor
-    l = mu + 1/l
+    v,l,_ = metpot1(Ainv)
     
-    return v,l,nrep < maxrep
+    l = 1/l # Reobtenemos el autovalor correcto
+    l -= mu
+    
+    return v,l,_
 
-def metpotI2(A,mu,tol=1e-6,maxrep=np.Inf):
+def metpotI2(A,mu,tol=1e-8,maxrep=np.inf):
    # Recibe la matriz A, y un valor mu y retorna el segundo autovalor y autovector de la matriz A, 
    # suponiendo que sus autovalores son positivos excepto por el menor que es igual a 0
    # Retorna el segundo autovector, su autovalor, y si el metodo llegó a converger.
-  
-   
-    #Calculemos el metpotI
-    v,l,_ = metpotI(A, mu, tol, maxrep)
-   
-    #Lo deflacionamos de la original
-    defliX = deflaciona(A,v,l,tol,maxrep) # La deflacionamos
-    v,l,_ =  metpotI(defliX, mu) # Buscamos su segundo autovector y valor
-
-    return v,l,_
+   X = A + np.eye(A.shape[0]) * mu # Calculamos la matriz A shifteada en mu
+   iX = inversa_desde_LU(X) # La invertimos
+   Vinv, Linv, _ = metpot1(iX)
+   defliX = deflaciona(iX,Vinv, Linv) # La deflacionamos
+   v,l,_ =  metpot1(defliX) # Buscamos su segundo autovector
+   l = 1/l # Reobtenemos el autovalor correcto
+   l += mu
+   return v,l,_
 
 def laplaciano_iterativo(A,niveles,nombres_s=None):
     # Recibe una matriz A, una cantidad de niveles sobre los que hacer cortes, y los nombres de los nodos
@@ -264,7 +237,7 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
     else: # Sino:
         L = calcula_L(A) # Recalculamos el L
         #le damos un mu chico
-        v,l,_ = metpotI2(L,0.0001) # Encontramos el segundo autovector de L
+        v,l,_ = metpotI2(L,0.001) # Encontramos el segundo autovector de L
         
         #Normalizamos v
         v = np.where(v > 0, 1, -1)
