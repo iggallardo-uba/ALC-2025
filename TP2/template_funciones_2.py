@@ -80,6 +80,13 @@ def calculaLU(A):
 
     return L, U
 
+def resolver_LU(L,U,x):
+    y = solve_triangular(L,x, lower=True)
+    
+    x = solve_triangular(U, y, lower=False)
+    
+    return x
+
 def inversa_desde_LU(A):
     # Función para calcular la matriz invertida a partir de la descomposicion LU de una Matriz
     # A: Matriz a invertir
@@ -152,9 +159,9 @@ def metpot1(A,tol=1e-8,maxrep=np.Inf):
    v1 = A@v # Aplicamos la matriz una vez
    v1 = v1/np.linalg.norm(v1)# normalizamos
    #print(v1)
-   l = (v.transpose()@A@v) # Calculamos el autovector estimado
+   l = (v.transpose()@A@v)/(v.transpose()@v) # Calculamos el autovector estimado
    #print("Valor primer l: " + str(l))
-   l1 = (v1.transpose()@A@v1) # Y el estimado en el siguiente paso
+   l1 = (v1.transpose()@A@v1)/(v1.transpose()@v1) # Y el estimado en el siguiente paso
    #print("Valor segundo l: " + str(l1))
    
    nrep = 0 # Contador
@@ -168,7 +175,7 @@ def metpot1(A,tol=1e-8,maxrep=np.Inf):
       #print("Valor primer l: " + str(l))
       v1 = A@v # Calculo nuevo v1
       v1 = v1/np.linalg.norm(v1) # Normalizo
-      l1 = v1.transpose()@A@v1 # Calculo autovector
+      l1 = (v1.transpose()@A@v1)/(v1.transpose()@v1) # Calculo autovector
       #print(v1)
       #print("Valor segundo l: " + str(l1))
       nrep += 1 # Un pasito mas
@@ -184,44 +191,67 @@ def deflaciona(A, v, l, tol=1e-8,maxrep=np.Inf):
 
     return deflA
 
-def metpot2(A,tol=1e-8,maxrep=np.Inf):
+def metpot2(A,tol=1e-6,maxrep=np.Inf):
    # La funcion aplica el metodo de la potencia para buscar el segundo autovalor de A, suponiendo que sus autovectores son ortogonales
    # v1 y l1 son los primeors autovectores y autovalores de A}
    v,l,_ = metpot1(A)
    
-   deflA = deflaciona(A,v,l tol, maxrep)
+   deflA = deflaciona(A,v,l, tol, maxrep)
    
    return metpot1(deflA,tol,maxrep)
 
-def metpotI(A,mu,tol=1e-8,maxrep=np.Inf):
-    # Retorna el primer autovalor de la inversa de A + mu * I, junto a su autovector y si el método convergió.
+def metpotI(A,mu=0.0,tol=1e-6,maxrep=np.Inf):
+    # Retorna el primer autovalor de la inversa de A - mu * I, junto a su autovector y si el método convergió.
     # Realizamos el shift y vemos LU
+    M = inversa_desde_LU(A - np.eye(A.shape[0]) * mu)
+    print("Condicion: " + str(np.linalg.cond(A - np.eye(A.shape[0]) * mu)))
     
-    M = A - np.eye(A.shape[0]) * mu
-    Minv = inversa_desde_LU(M)
+    v = np.random.rand(A.shape[0])
+    v /= np.linalg.norm(v)
+
+    l = 0.0
+    nrep = 0
     
-    v,l,_ = metpot1(Minv,tol=tol,maxrep=maxrep)
-    
-    # Recuperemos el autovalor
+    while nrep < maxrep:
+        v1 = M @ v
+        v1 /= np.linalg.norm(v1)
+
+        # Rayleigh quotient on inverse matrix
+        l1 = v1.transpose() @ M @ v1
+
+        print("l: " + str(l))
+        print("l1: " + str(l1))
+        print("v:")
+        print(v)
+        print("v1:")
+        print(v1)
+        print("------------")
+
+        if abs(l1 - l) < tol:
+            break
+
+        v = v1
+        l = l1
+        
+    # Recuperamos el nuevo autovalor
     l = mu + 1/l
     
-    return v,l,_
+    return v,l,nrep < maxrep
 
-def metpotI2(A,mu,tol=1e-8,maxrep=np.Inf):
+def metpotI2(A,mu,tol=1e-6,maxrep=np.Inf):
    # Recibe la matriz A, y un valor mu y retorna el segundo autovalor y autovector de la matriz A, 
    # suponiendo que sus autovalores son positivos excepto por el menor que es igual a 0
    # Retorna el segundo autovector, su autovalor, y si el metodo llegó a converger.
-   X = A + np.eye(A.shape[0]) * mu # Calculamos la matriz A shifteada en mu
-   iX = inversa_desde_LU(X) # La invertimos
+  
    
-   #Calculemos los mas chicos
-   v,l,_ = metpotI(A, mu)
+    #Calculemos el metpotI
+    v,l,_ = metpotI(A, mu, tol, maxrep)
    
-   defliX = deflaciona(iX,v,l,tol=1e-8,maxrep=np.Inf) # La deflacionamos
-   v,l,_ =  metpotI(defliX, mu) # Buscamos su segundo autovector
-   l = mu + 1/l # Reobtenemos el autovalor correcto
-   return v,l,_
+    #Lo deflacionamos de la original
+    defliX = deflaciona(A,v,l,tol,maxrep) # La deflacionamos
+    v,l,_ =  metpotI(defliX, mu) # Buscamos su segundo autovector y valor
 
+    return v,l,_
 
 def laplaciano_iterativo(A,niveles,nombres_s=None):
     # Recibe una matriz A, una cantidad de niveles sobre los que hacer cortes, y los nombres de los nodos
@@ -233,7 +263,8 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
         return([nombres_s])
     else: # Sino:
         L = calcula_L(A) # Recalculamos el L
-        v,l,_ = metpotI2(L) # Encontramos el segundo autovector de L
+        #le damos un mu chico
+        v,l,_ = metpotI2(L,0.0001) # Encontramos el segundo autovector de L
         
         #Normalizamos v
         v = np.where(v > 0, 1, -1)
