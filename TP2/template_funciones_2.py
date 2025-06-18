@@ -171,13 +171,11 @@ def metpot1(A,tol=1e-8,maxrep=np.inf):
       
       v = v1 # actualizamos v y repetimos
       l = l1
-      #print(v)
-      print("Valor primer l: " + str(l))
+      
       v1 = A@v # Calculo nuevo v1
       v1 = v1/np.linalg.norm(v1) # Normalizo
       l1 = (v1.transpose()@A@v1)/(v1.transpose()@v1) # Calculo autovector
-      #print(v1)
-      print("Valor segundo l: " + str(l1))
+
       nrep += 1 # Un pasito mas
    
    if not nrep < maxrep:
@@ -266,37 +264,29 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
     if nombres_s is None:
         nombres_s = range(R.shape[0])
     # Acá empieza lo bueno
+    
+    #print("Primera R:")
+    #print(R)
+    #print("autoval: " + str(np.linalg.eig(R)[0]))
+    #print("autovectores")
+    #print(np.linalg.eig(R)[1]) 
+    
     if R.shape[0] == 1: # Si llegamos al último nivel
-        return [nombres_s]
+        return nombres_s
     else:
-        #print("Primera R:")
-        #print(R)
-        #print("autoval: " + str(np.linalg.eig(R)[0]))
-        #print("autovectores")
-        #print(np.linalg.eig(R)[1]) 
-        
         v,l,_ = metpot1(R) # Primer autovector y autovalor de R
-        
-        #print("Primer autovector:" + str(v))
-        #print("Primer Autovalor: " + str(l))
-        #print("Separacion: " + str(nombres_s))
         
         # Modularidad Actual:
         Q0 = np.sum(R[v>0,:][:,v>0]) + np.sum(R[v<0,:][:,v<0])
-        #print("la que estaba: " + str(Q0))
-        
-        #Con funcion
-        Q0f = calcula_Q(R,v)
-        #print("funcion: " + str(Q0f))
+        #print("Primera modularidad: " + str(Q0))
         
         # Separamos los valores de las comunidades
         v = np.where(v > 0, 1, -1)
-        #print("Separaciones: " + str(v))
-        
-        # Valor Modularidad
-        #print(Q0)
+        #print("Ayutovector: " + str(v))
+        #print("----------------------")
+
         if Q0<=0 or all(v>0) or all(v<0): # Si la modularidad actual es menor a cero, o no se propone una partición, terminamos
-            print("Modularidad Adecuada")
+            #print("Modularidad Adecuada")
             
             # Separamos y devolvemos los grupos
             Rp = [nombres_s[i] for i in range(len(v)) if v[i] == 1] # Parte de R asociada a los valores positivos de v
@@ -334,5 +324,5 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
                 return([[ni for ni,vi in zip(nombres_s,v) if vi>0],[ni for ni,vi in zip(nombres_s,v) if vi<0]])
             else:
                 # Sino, repetimos para los subniveles creados
-                return modularidad_iterativo(ARp, Rp) +modularidad_iterativo(ARm, Rm)
+                return modularidad_iterativo(ARp, RRp, Rp) +modularidad_iterativo(ARm, RRm, Rm)
 
