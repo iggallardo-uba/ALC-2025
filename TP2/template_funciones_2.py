@@ -24,17 +24,22 @@ def calcular_matriz_K(A):
     # Función para calcular la matriz de Grado para calcular C
     # A: Matriz de adyacencia
     # Retorna la matriz de grado K
-    #K = np.zeros(A.shape)
-    #for i in range(A.shape[0]):
-    #  K[i,i] = np.sum(A[i,:])
-    
-    return np.diag(np.sum(A, axis=1))
+    K = np.zeros(A.shape)
+    for i in range(A.shape[0]):
+        K[i,i] = np.sum(A[i,:])
+        
+    return K
 
 def calcular_vector_K(A):
+    # Función para calcular el vector de Grado con la funcion de Matriz K
+    # A: Matriz de adyacencia
+    # Retorna el vector de grado K (Diagonal de la Matriz K)
     return np.diag(calcular_matriz_K(A))
 
 def simetrizacionDeA(A):
-    #La funcion recibe la matriz de adyaciencia A y la simetriza para evitar errores
+    #La funcion recibe la matriz de adyaciencia A de museos y la simetriza
+    # A: Matriz de adyacencia de museos
+    # Retorna la matriz pero no dirigida, si no simetrica
     return (A+A.transpose())/2
 
 def vector_s(v):
@@ -53,7 +58,92 @@ def valor_2E(A):
     
     return sum(sum(A))
 
-# Funcion de Inversion
+def construye_adyacencia(D,m):
+    # Función que construye la matriz de adyacencia del grafo de museos
+    # D matriz de distancias, m cantidad de links por nodo
+    # Retorna la matriz de adyacencia como un numpy.
+    D = D.copy()
+    l = [] # Lista para guardar las filas
+    for fila in D: # recorriendo las filas, anexamos vectores lógicos
+        l.append(fila<=fila[np.argsort(fila)[m]] ) # En realidad, elegimos todos los nodos que estén a una distancia menor o igual a la del m-esimo más cercano
+    A = np.asarray(l).astype(int) # Convertimos a entero
+    np.fill_diagonal(A,0) # Borramos diagonal para eliminar autolinks
+    return(A)
+
+def GraficoCiudadModularidad(A, museos, barrios, comunidades, conexiones):
+    # Funcion para graficar ranking con el mapa de la
+    # D: Matriz de adyacencia
+    # Museos y Barios: Variables para informacion Geografica
+    # Retorna: Valor del numero de condicion 1 de la matriz
+
+    G = nx.from_numpy_array(A) # Construimos la red a partir de la matriz de adyacencia
+    # Construimos un layout a partir de las coordenadas geográficas
+    G_layout = {i:v for i,v in enumerate(zip(museos.to_crs("EPSG:22184").get_coordinates()['x'],museos.to_crs("EPSG:22184").get_coordinates()['y']))}
+
+    node_colors = [0] * len(G.nodes)
+    for idx, community in enumerate(comunidades):
+        for node in community:
+            node_colors[node] = idx  # assign a unique color index per community
+
+    factor_escala = 200 # Escalamos los nodos 10 mil veces para que sean bien visibles
+    fig, ax = plt.subplots(figsize=(10, 10)) # Visualización de la red en el mapa
+    barrios.to_crs("EPSG:22184").boundary.plot(color='gray',ax=ax) # Graficamos Los barrios
+    nx.draw_networkx(G,G_layout,node_size = factor_escala,node_color=node_colors, ax=ax,with_labels=False) # Graficamos red
+    ax.set_title("Grafico de Modularidad con m = " + str(conexiones))
+
+
+
+def GraficoCiudadCorteLaplaciano(A, museos, barrios, comunidades, conexiones, cortes):
+    # Funcion para graficar ranking con el mapa de la
+    # D: Matriz de adyacencia
+    # Museos y Barios: Variables para informacion Geografica
+    # Retorna: Valor del numero de condicion 1 de la matriz
+
+    G = nx.from_numpy_array(A) # Construimos la red a partir de la matriz de adyacencia
+    # Construimos un layout a partir de las coordenadas geográficas
+    G_layout = {i:v for i,v in enumerate(zip(museos.to_crs("EPSG:22184").get_coordinates()['x'],museos.to_crs("EPSG:22184").get_coordinates()['y']))}
+
+    node_colors = [0] * len(G.nodes)
+    for idx, community in enumerate(comunidades):
+        for node in community:
+            node_colors[node] = idx  # assign a unique color index per community
+
+    factor_escala = 200 # Escalamos los nodos 10 mil veces para que sean bien visibles
+    fig, ax = plt.subplots(figsize=(10, 10)) # Visualización de la red en el mapa
+    barrios.to_crs("EPSG:22184").boundary.plot(color='gray',ax=ax) # Graficamos Los barrios
+    nx.draw_networkx(G,G_layout,node_size = factor_escala,node_color=node_colors, ax=ax,with_labels=False) # Graficamos red
+    ax.set_title("Grafico de Cortes Laplaciano con m = " + str(conexiones) + " con " +str(cortes) + " niveles")
+
+def GraficosCiudadCortesConjunto(D, museos, barrios, m ,cortes, x,y):
+    # Crear una figura con x filas y y columnas
+    fig, axes = plt.subplots(x, y, figsize=(16, 16))
+
+    # Título principal
+    fig.suptitle("Graficos de Cortes con m = " + str(m), fontsize=16, fontweight='bold')
+
+    factor_escala = 200
+    
+    A = simetrizacionDeA(construye_adyacencia(D, m))
+
+    for i in range(0,x):
+        for j in range(0,y):
+            posicion = i+j+(x-1)*i 
+
+            G = nx.from_numpy_array(A) # Construimos la red a partir de la matriz de adyacencia
+            G_layout = {i:v for i,v in enumerate(zip(museos.to_crs("EPSG:22184").get_coordinates()['x'],museos.to_crs("EPSG:22184").get_coordinates()['y']))}
+            barrios.to_crs("EPSG:22184").boundary.plot(color='gray', ax=axes[i,j]) # Graficamos Los barrios
+
+            AnalisisLaplaciano = laplaciano_iterativo(A,cortes[posicion])
+            
+            node_colors = [0] * len(G.nodes)
+            for idx, community in enumerate(AnalisisLaplaciano):
+                for node in community:
+                    node_colors[node] = idx 
+
+            nx.draw_networkx(G,G_layout,ax = axes[i,j],node_size = factor_escala,node_color=node_colors,with_labels=False)
+            axes[i, j].set_title("Grafico de cortes laplaciono con m =" + str(m) + " y nivel " + str(cortes[posicion]))
+
+# Funciones de Inversion
 def calculaLU(A):
     # matriz es una matriz de NxN
     # Retorna la factorización LU a través de una lista con dos matrices L y U de NxN.
@@ -80,13 +170,6 @@ def calculaLU(A):
 
     return L, U
 
-def resolver_LU(L,U,x):
-    y = solve_triangular(L,x, lower=True)
-    
-    x = solve_triangular(U, y, lower=False)
-    
-    return x
-
 def inversa_desde_LU(A):
     # Función para calcular la matriz invertida a partir de la descomposicion LU de una Matriz
     # A: Matriz a invertir
@@ -108,24 +191,26 @@ def inversa_desde_LU(A):
 
 # Funciones del TP
 def calcula_L(A):
-    # La función recibe la matriz de adyacencia A y calcula la matriz laplaciana
+    # Funcion que se encarga de calcular la Matriz Laplaciana
+    # A: Matriz de Adyaciencia
+    # Retorna solo la matriz Laplaciana
     # Have fun!!
 
-    #Calculamos con la nueva A nuestra K
+    #Calculamos la matriz K nuestra A
     K = calcular_matriz_K(A)
 
     #Devolvemos la Matriz L
     return K - A
 
 def calcula_R(A):
-    # La funcion recibe la matriz de adyacencia A y calcula la matriz de modularidad
+    # Funcion para carcular la matriz de Modularidad
+    # A: Matriz de Adyanciencia
+    # Retorna  la matriz de Modularidad R de A
     # Have fun!!
 
     #Calculamos nuestra K y E
     K = calcular_vector_K(A)
-    #print("Grado: " + str(K))
     div = valor_2E(A)
-    #print("Divisor: " + str(div))
 
     #Con todo esto podemos calcular P
     P = np.outer(K,K)/div
@@ -133,6 +218,7 @@ def calcula_R(A):
     #Devolvemos el R final
     return A-P
 
+# Ver para que estaba
 def calcula_lambda(L,v):
     # Recibe L y v y retorna el corte asociado
     
@@ -152,72 +238,95 @@ def calcula_Q(R,v):
     return Q
 
 def metpot1(A,tol=1e-8,maxrep=np.inf):
-   # Recibe una matriz A y calcula su autovalor de mayor módulo, con un error relativo menor a tol y-o haciendo como mucho maxrep repeticiones
-   v = np.random.uniform(low=-1.0, high=1.0, size=A.shape[0]) # Generamos un vector de partida aleatorio, entre -1 y 1
-   v = v/np.linalg.norm(v) # Lo normalizamos
-   #print(v)
-   v1 = A@v # Aplicamos la matriz una vez
-   v1 = v1/np.linalg.norm(v1)# normalizamos
-   #print(v1)
-   l = (v.transpose()@A@v)/(v.transpose()@v) # Calculamos el autovector estimado
-   #print("Valor primer l: " + str(l))
-   l1 = (v1.transpose()@A@v1)/(v1.transpose()@v1) # Y el estimado en el siguiente paso
-   #print("Valor segundo l: " + str(l1))
-   
-   nrep = 0 # Contador
-   
-   while np.abs(l1-l)/np.abs(l) > tol and nrep < maxrep: # Si estamos por debajo de la tolerancia buscada 
-      #print("repe num: " + str(nrep))
-      
-      v = v1 # actualizamos v y repetimos
-      l = l1
-      
-      v1 = A@v # Calculo nuevo v1
-      v1 = v1/np.linalg.norm(v1) # Normalizo
-      l1 = (v1.transpose()@A@v1)/(v1.transpose()@v1) # Calculo autovector
+    # Funcion para calcular el primer autovector y autovalor de una matriz A
+    # A: Matriz a aplicar el metodo
+    # Retorna:
+    # - v1: Autovector calculado
+    # - l1: Autovalor calculado
+    # - _: True si el metodo convergio, False si se paso de repeticiones
+    
+    # Variables de Inicio
+    nrep = 0
+    
+    # Generamos un vector de partida aleatorio, entre -1 y 1. Despues lo normalizamos
+    v = np.random.uniform(low=-1.0, high=1.0, size=A.shape[0]) 
+    v = v/np.linalg.norm(v) 
 
-      nrep += 1 # Un pasito mas
-   
-   if not nrep < maxrep:
-      print('MaxRep alcanzado')
-   
-   return v1,l1,nrep<maxrep
+    # Aplicamos el metodo de la Potencia, y calculamos los autovalores correspondientes
+    v1 = A@v 
+    v1 = v1/np.linalg.norm(v1)
+
+    l = (v.transpose()@A@v)/(v.transpose()@v) 
+    l1 = (v1.transpose()@A@v1)/(v1.transpose()@v1)  
+    
+    # Repetimos el metodo hasta que converga a la tolerancia o se pase de repeticiones
+    while np.abs(l1-l)/np.abs(l) > tol and nrep < maxrep:
+        # Reiniciamos condicionees iniciales
+        v = v1 
+        l = l1
+        
+        # Aplicamos el metodo nuevamente
+        v1 = A@v 
+        v1 = v1/np.linalg.norm(v1) 
+        l1 = (v1.transpose()@A@v1)/(v1.transpose()@v1)
+
+        nrep += 1 # Un pasito mas
+    
+    if not nrep < maxrep:
+        print('MaxRep alcanzado')
+    
+    return v1,l1,nrep<maxrep
 
 def deflaciona(A, v, l, tol=1e-8,maxrep=np.inf):
-    # Recibe la matriz A, una tolerancia para el método de la potencia, y un número máximo de repeticiones
-    deflA = A - l * np.outer(v, v) # Sugerencia, usar la funcion outer de numpy
+    # Funcion que deflaciona el autovector V de la matriz A para que su autovalor L pase a ser 0
+    # A: Matriz a Deflacionar
+    # v: Autovector que queremos deflacionnar
+    # l: Valor del autovalor del autovector a deflacionar 
+    # Retorna la Matriz A deflacionada
+    
+    deflA = A - l * np.outer(v, v)
 
     return deflA
 
 def metpot2(A,tol=1e-8,maxrep=np.inf):
-   # La funcion aplica el metodo de la potencia para buscar el segundo autovalor de A, suponiendo que sus autovectores son ortogonales
-   # v1 y l1 son los primeors autovectores y autovalores de A}
+   # Funciona para buscar el segundo autovector y autovalor de la matriz A
+   # A: Matriz a aplicar el metodo
+   # Retorna el segundo autovector y autovalor
+   
+   # Calculamos el primer autovalor y autovector
    v,l,_ = metpot1(A)
    
+   # Se los sacamos a A para calcular el siguiente
    deflA = deflaciona(A,v,l, tol, maxrep)
    
+   # devolvemos los resultados del metodo de la potencia en la Matriz deflacionada
    return metpot1(deflA,tol,maxrep)
 
 def metpotI(A,mu=0.0,tol=1e-8,maxrep=np.inf):
-    # Retorna el primer autovalor de la inversa de A - mu * I, junto a su autovector y si el método convergió.
+    # Retorna el primer autovalor de la inversa de A + mu * I, junto a su autovector y si el método convergió.
+    # A: Matriz a aplicar el metodo
+    # mu: El shifteo que realizamos
     
-    # Primero calculemos el shifteo
+    # Primero calculemos La matriz invertida con su shifteo
     Ainv = inversa_desde_LU(A + np.eye(A.shape[0]) * mu)
     
-    v,l,_ = metpot1(Ainv)
+    #Calculamos con el metodo de Potencia el autovector mas chico y su autovalor
+    v,l,_ = metpot1(Ainv, tol, maxrep)
     
-    l = 1/l # Reobtenemos el autovalor correcto
+    # Reobtenemos el autovalor que le corresponde a la matriz A
+    l = 1/l 
     l -= mu
     
     return v,l,_
 
 def metpotI2(A,mu,tol=1e-8,maxrep=np.inf):
-   # Recibe la matriz A, y un valor mu y retorna el segundo autovalor y autovector de la matriz A, 
-   # suponiendo que sus autovalores son positivos excepto por el menor que es igual a 0
+   # Retorna el segundo autovalor de la inversa de A + mu * I, junto a su autovector y si el método convergió.
+   # A: Matriz a aplicar el metodo
+   # mu: El shifteo que realizamos
    # Retorna el segundo autovector, su autovalor, y si el metodo llegó a converger.
    X = A + np.eye(A.shape[0]) * mu # Calculamos la matriz A shifteada en mu
    iX = inversa_desde_LU(X) # La invertimos
-   Vinv, Linv, _ = metpot1(iX)
+   Vinv, Linv, _ = metpot1(iX, tol, maxrep)
    defliX = deflaciona(iX,Vinv, Linv) # La deflacionamos
    v,l,_ =  metpot1(defliX) # Buscamos su segundo autovector
    l = 1/l # Reobtenemos el autovalor correcto
@@ -225,25 +334,30 @@ def metpotI2(A,mu,tol=1e-8,maxrep=np.inf):
    return v,l,_
 
 def laplaciano_iterativo(A,niveles,nombres_s=None):
-    # Recibe una matriz A, una cantidad de niveles sobre los que hacer cortes, y los nombres de los nodos
-    # Retorna una lista con conjuntos de nodos representando las comunidades.
-    # La función debe, recursivamente, ir realizando cortes y reduciendo en 1 el número de niveles hasta llegar a 0 y retornar.
+    # Funcion que calcula los cortes minimos recursivamente de nuestra matriz de Adyaciencia
+    # A: Matriz de Adyaciencia
+    # niveles: cuantos cortes va a realizar
+    # nombres_s: posiciones o nombres que va recortando el metodo
+    # Retorna una lista de conjuntos de nodos que respresentan las comunidades
+    
     if nombres_s is None: # Si no se proveyeron nombres, los asignamos poniendo del 0 al N-1
         nombres_s = range(A.shape[0])
     if A.shape[0] == 1 or niveles == 0: # Si llegamos al último paso, retornamos los nombres en una lista
-        return([nombres_s])
+        return [nombres_s]
     else: # Sino:
         L = calcula_L(A) # Recalculamos el L
-        #le damos un mu chico
-        v,l,_ = metpotI2(L,0.001) # Encontramos el segundo autovector de L
         
-        #Normalizamos v
+        #le damos un mu chico o cercano a cero para que calcule los menores autovectores
+        v,l,_ = metpotI2(L,0.00001) # Encontramos el segundo autovector de L
+        
+        #realizemos un formateo de v para que sea mas facil operarlo
         v = np.where(v > 0, 1, -1)
         
         # Recortamos A en dos partes, la que está asociada a el signo positivo de v y la que está asociada al negativo
         Ap = A[np.ix_(v == 1, v == 1)] # Asociado al signo positivo
         Am = A[np.ix_(v == -1, v == -1)] # Asociado al signo negativo
         
+        # Aplicamos el metodo para cada recorte que hicimos
         return(
                 laplaciano_iterativo(Ap,niveles-1,
                                      nombres_s=[ni for ni,vi in zip(nombres_s,v) if vi>0]) +
@@ -253,37 +367,37 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
 
 
 def modularidad_iterativo(A=None,R=None,nombres_s=None):
-    # Recibe una matriz A, una matriz R de modularidad, y los nombres de los nodos
-    # Retorna una lista con conjuntos de nodos representando las comunidades.
+    # Recibe la matriz de adyanciencias y calcula los cortes segun su modularidad
+    # A: Matriz de adyaciencias
+    # R: Matriz de Modularidad del paso anterior
+    # nombres_s:posiciones o nombres que va recortando el metodo
+    # Retorna una lista con conjuntos de nodos representando las comunidades
 
+    # Chequeo de si estan bien los inputs
     if A is None and R is None:
         #print('Dame una matriz')
         return(np.nan)
+    
+    # Si es el primero, calculamos su modularidad
     if R is None:
         R = calcula_R(A)
     if nombres_s is None:
         nombres_s = range(R.shape[0])
     # Acá empieza lo bueno
     
-    #print("Primera R:")
-    #print(R)
-    #print("autoval: " + str(np.linalg.eig(R)[0]))
-    #print("autovectores")
-    #print(np.linalg.eig(R)[1]) 
-    
     if R.shape[0] == 1: # Si llegamos al último nivel
         return nombres_s
     else:
+        # Calculamos el primer autovector y autovalor de R para la modularidad
         v,l,_ = metpot1(R) # Primer autovector y autovalor de R
         
-        # Modularidad Actual:
+        # Calculamos la Modularidad base 
         Q0 = np.sum(R[v>0,:][:,v>0]) + np.sum(R[v<0,:][:,v<0])
-        #print("Primera modularidad: " + str(Q0))
         
-        # Separamos los valores de las comunidades
+        
+        #realizemos un formateo de v para que sea mas facil operarlo
         v = np.where(v > 0, 1, -1)
-        #print("Ayutovector: " + str(v))
-        #print("----------------------")
+
 
         if Q0<=0 or all(v>0) or all(v<0): # Si la modularidad actual es menor a cero, o no se propone una partición, terminamos
             #print("Modularidad Adecuada")
@@ -295,34 +409,36 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
             return [Rp,Rm]
         else:
             # Hacemos como con L, pero usando directamente R para poder mantener siempre la misma matriz de modularidad
-            Rp = [nombres_s[i] for i in range(len(v)) if v[i] == 1] # Parte de R asociada a los valores positivos de v
-            Rm = [nombres_s[i] for i in range(len(v)) if v[i] == -1] # Parte asociada a los valores negativos de v
             
-            # Ahora con los grupos subdividimos
-            ARp = A[np.ix_(v == 1, v == 1)]
-            ARm = A[np.ix_(v == -1, v == -1)]
+            # Primero, separamos las comunidades en positivo y negativo
+            ComunidadP = [nombres_s[i] for i in range(len(v)) if v[i] == 1] # Parte de R asociada a los valores positivos de v
+            ComunidadN = [nombres_s[i] for i in range(len(v)) if v[i] == -1] # Parte asociada a los valores negativos de v
             
-            #Calculamos R correspondientes
-            RRp = calcula_R(ARp)
-            RRm = calcula_R(ARm)
+            # Segundo, pasamos las matrices de Adyaciencias segun la comunidad
+            Apositiva = A[np.ix_(v == 1, v == 1)]
+            Anegativa = A[np.ix_(v == -1, v == -1)]
             
-            #Calculamos sus autovectores
-            vp,lp,_ = metpot1(RRp)  # autovector principal de Rp
-            vm,lm,_ = metpot1(RRm) # autovector principal de Rm
+            # Tercero, calculamos las Matrices de modularidad de cada comunidad
+            Rpositiva = calcula_R(Apositiva)
+            Rnegativa = calcula_R(Anegativa)
+            
+            # Y calculamos sus autovectores correspondientes
+            vPositivo,lp,_ = metpot1(Rpositiva)  # autovector principal de Rp
+            vNegativo,lm,_ = metpot1(Rnegativa) # autovector principal de Rm
         
-            # Arreglamos los autovectores
-            vp = np.where(vp > 0, 1, -1)
-            vm = np.where(vm > 0, 1, -1)
+            # Cuarto, formateamos los autovectores para que sea mas facil su operacion
+            vPositivo = np.where(vPositivo > 0, 1, -1)
+            vNegativo = np.where(vNegativo > 0, 1, -1)
 
-            # Calculamos el cambio en Q que se produciría al hacer esta partición
+            # Quinto, Calculamos el cambio en Q que se produciría al hacer esta partición
             Q1 = 0
-            if not all(vp>0) or all(vp<0):
-               Q1 = np.sum(RRp[vp>0,:][:,vp>0]) + np.sum(RRp[vp<0,:][:,vp<0])
-            if not all(vm>0) or all(vm<0):
-                Q1 += np.sum(RRm[vm>0,:][:,vm>0]) + np.sum(RRm[vm<0,:][:,vm<0])
+            if not all(vPositivo>0) or all(vPositivo<0):
+               Q1 = np.sum(Rpositiva[vPositivo>0,:][:,vPositivo>0]) + np.sum(Rpositiva[vPositivo<0,:][:,vPositivo<0])
+            if not all(vNegativo>0) or all(vNegativo<0):
+                Q1 += np.sum(Rnegativa[vNegativo>0,:][:,vNegativo>0]) + np.sum(Rnegativa[vNegativo<0,:][:,vNegativo<0])
             if Q0 >= Q1: # Si al partir obtuvimos un Q menor, devolvemos la última partición que hicimos
                 return([[ni for ni,vi in zip(nombres_s,v) if vi>0],[ni for ni,vi in zip(nombres_s,v) if vi<0]])
             else:
                 # Sino, repetimos para los subniveles creados
-                return modularidad_iterativo(ARp, RRp, Rp) +modularidad_iterativo(ARm, RRm, Rm)
+                return modularidad_iterativo(Apositiva, Rpositiva, ComunidadP) +modularidad_iterativo(Anegativa, Rnegativa, ComunidadN)
 

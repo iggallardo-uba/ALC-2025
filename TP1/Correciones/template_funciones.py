@@ -125,8 +125,6 @@ def calcular_matriz_invertida(A):
 
   return Inv
 
-# Correccion de funcion
-#< Nueva funcion para calcular la invertida de una matriz digonal eficientemente
 def invertida_de_matriz_diagonal(A):
    # Calcula eficientemente la inversa de una matriz diagonal
    # A: Matriz a invertir
@@ -145,7 +143,6 @@ def invertida_de_matriz_diagonal(A):
 
     return inversa
 
-#<
 def inversa_desde_LU(A):
     # Función para calcular la matriz invertida a partir de la descomposicion LU de una Matriz
     # A: Matriz a invertir
@@ -186,23 +183,6 @@ def calcula_matriz_C_continua(D):
 
     A = D.copy()
     C = np.zeros(A.shape)
-
-    #> Esta es la forma desarrollada que esta bien pero es mas lenta. Con numpy quedaba mas rapido y corto usando 
-    #> una ecuacion casi identica a la de la C original
-    #for i in range(A.shape[0]):
-    #  dist_total = 0
-    # Calculamos la distancia total de la fila
-    #  for j in range(A.shape[1]):
-    #    if (i != j):
-    #      dist_total += 1/A[i,j]
-    #
-    # USamos la distancia total para calcular el resto de distancias de la matriz
-    #  for j in range(A.shape[1]):
-    #    if (i != j):
-    #      C[j,i] = (1/A[i,j])/dist_total
-
-    #> una ecuacion casi identica a la de la C original
-    #< Ahora evitando los for explicitos usando numpy
 
     # Lleno la diagonal con inf para evitar dividir por 0
     np.fill_diagonal(A, np.inf)
