@@ -91,8 +91,6 @@ def GraficoCiudadModularidad(A, museos, barrios, comunidades, conexiones):
     nx.draw_networkx(G,G_layout,node_size = factor_escala,node_color=node_colors, ax=ax,with_labels=False) # Graficamos red
     ax.set_title("Grafico de Modularidad con m = " + str(conexiones))
 
-
-
 def GraficoCiudadCorteLaplaciano(A, museos, barrios, comunidades, conexiones, cortes):
     # Funcion para graficar ranking con el mapa de la
     # D: Matriz de adyacencia
@@ -144,6 +142,8 @@ def GraficosCiudadCortesConjunto(D, museos, barrios, m ,cortes, x,y):
             axes[i, j].set_title("Grafico de cortes laplaciono con m =" + str(m) + " y nivel " + str(cortes[posicion]))
 
 #> Pueden importar las cosas del template 1, no hace falta copiar y pegar
+# Gallar > Noted, despues veo que se queda y que no
+
 # Funciones de Inversion
 def calculaLU(A):
     # matriz es una matriz de NxN
@@ -195,7 +195,6 @@ def calcula_L(A):
     # Funcion que se encarga de calcular la Matriz Laplaciana
     # A: Matriz de Adyaciencia
     # Retorna solo la matriz Laplaciana
-    # Have fun!!
 
     #Calculamos la matriz K nuestra A
     K = calcular_matriz_K(A)
@@ -207,7 +206,6 @@ def calcula_R(A):
     # Funcion para carcular la matriz de Modularidad
     # A: Matriz de Adyanciencia
     # Retorna  la matriz de Modularidad R de A
-    # Have fun!!
 
     #Calculamos nuestra K y E
     K = calcular_vector_K(A)
@@ -331,7 +329,10 @@ def metpotI2(A,mu,tol=1e-8,maxrep=np.inf):
    defliX = deflaciona(iX,Vinv, Linv) # La deflacionamos
    v,l,_ =  metpot1(defliX) # Buscamos su segundo autovector
    l = 1/l # Reobtenemos el autovalor correcto
-   l += mu  #> Aca tienen un bug! Volvieron a sumar mu en vez de restarlo
+   # Valen > Aca tienen un bug! Volvieron a sumar mu en vez de restarlo
+   # l += mu
+   # Gallar > Bueno vamos a restarlo para arreglar el tema
+   l -= mu
    return v,l,_
 
 def laplaciano_iterativo(A,niveles,nombres_s=None):
@@ -382,10 +383,12 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
     # Si es el primero, calculamos su modularidad
     if R is None:
         R = calcula_R(A)
+    
+    # Si no damos nombres, creamos los nuestros
     if nombres_s is None:
         nombres_s = range(R.shape[0])
+        
     # Acá empieza lo bueno
-    
     if R.shape[0] == 1: # Si llegamos al último nivel
         return nombres_s
     else:
@@ -395,12 +398,11 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
         # Calculamos la Modularidad base 
         Q0 = np.sum(R[v>0,:][:,v>0]) + np.sum(R[v<0,:][:,v<0])
         
-        
         #realizemos un formateo de v para que sea mas facil operarlo
         v = np.where(v > 0, 1, -1)
 
-
-        if Q0<=0 or all(v>0) or all(v<0): # Si la modularidad actual es menor a cero, o no se propone una partición, terminamos
+        # Si la modularidad actual es menor a cero, o no se propone una partición, terminamos
+        if Q0<=0 or all(v>0) or all(v<0): 
             #print("Modularidad Adecuada")
             
             # Separamos y devolvemos los grupos
@@ -419,6 +421,7 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
             Apositiva = A[np.ix_(v == 1, v == 1)]
             Anegativa = A[np.ix_(v == -1, v == -1)]
             
+            # Valen >
             #> Estan calculando dos particiones en el mismo paso y entonces se estan salteando masomenos la mitad 
             #> de los cortes. Por cada paso deberia haber solo una R que parten en 2. Ustedes tienen 3.
             #> El codigo deberia ser casi igual al del laplaciano porque el procedimiento no cambia mucho.

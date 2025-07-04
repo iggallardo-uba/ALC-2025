@@ -89,8 +89,13 @@ def calcula_matriz_C(A):
     # Función para calcular la matriz de trancisiones C
     # A: Matriz de adyacencia
     # Retorna la matriz C
-    Kinv = calcular_matriz_invertida(calcular_matriz_K(A)) # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de A
-    #> La inversa de K se calcula mas facil y rapido aprovechando que es diagonal
+    
+    # Valen > La inversa de K se calcula mas facil y rapido aprovechando que es diagonal
+    # Kinv = calcular_matriz_invertida(calcular_matriz_K(A)) # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de A
+   
+    # Gallar > sois un pelotudoo, volve a cambiar esta cosa a LU
+    Kinv = inversa_desde_LU(calcular_matriz_K(A))
+    
     C = A.transpose() @ Kinv # Calcula C multiplicando Kinv y A
     return C
 
@@ -103,7 +108,8 @@ def calcular_matriz_K(A):
     K[i,i] = np.sum(A[i,:])
   return K
 
-#> No vale calcular la inversa asi, usen LU.
+# Valen > No vale calcular la inversa asi, usen LU.
+# Gallardo > Ya esta hecha inversa con LU y bien programada
 def calcular_matriz_invertida(A):
   # Función para calcular la matriz invertida de una Matriz
   # A: Matriz Original
@@ -125,6 +131,7 @@ def calcular_matriz_invertida(A):
 
   return Inv
 
+# Funcion de inversion vieja
 def invertida_de_matriz_diagonal(A):
    # Calcula eficientemente la inversa de una matriz diagonal
    # A: Matriz a invertir
@@ -143,6 +150,7 @@ def invertida_de_matriz_diagonal(A):
 
     return inversa
 
+# Nueva funcion de inversion
 def inversa_desde_LU(A):
     # Función para calcular la matriz invertida a partir de la descomposicion LU de una Matriz
     # A: Matriz a invertir
@@ -191,11 +199,14 @@ def calcula_matriz_C_continua(D):
     inv_A = 1 / A
 
     # Calculamos la distancia total de la fila
-    dist_total = inv_A.sum(axis=1)
+    # Gallar > le falta un sum
+    dist_total_row = np.sum(inv_A, axis=1)
 
     # Normalizamos cada fila
     # Transponemos porque el valor C[j, i] depende de A[i, j]
-    C = (inv_A.T / dist_total).T
+    
+    # Gallar > Ahora si esta bien despue de twikear cosas
+    C = (inv_A.transpose() / dist_total_row)
 
     return C
 
@@ -247,7 +258,7 @@ def NumCond1_Matriz(A):
   # A: Matriz a calcular numero de condicion 1
   # Retorna: Valor del numero de condicion 1 de la matriz
 
-  return Norma1_Matriz(A) * Norma1_Matriz(calcular_matriz_invertida(A))
+  return Norma1_Matriz(A) * Norma1_Matriz(inversa_desde_LU(A))
 
 def GraficoCiudad(A, ranking, museos, barrios):
   # Funcion para graficar ranking con el mapa de la
