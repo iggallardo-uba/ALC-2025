@@ -7,6 +7,8 @@ import networkx as nx # Construcción de la red en NetworkX
 import scipy
 from scipy.linalg import solve_triangular
 
+from Correccion_template_funciones import *
+
 # Matriz A de ejemplo
 #A_ejemplo = np.array([
 #    [0, 1, 1, 1, 0, 0, 0, 0],
@@ -20,16 +22,6 @@ from scipy.linalg import solve_triangular
 #])
 
 # Funciones Auxiliares
-def calcular_matriz_K(A):
-    # Función para calcular la matriz de Grado para calcular C
-    # A: Matriz de adyacencia
-    # Retorna la matriz de grado K
-    K = np.zeros(A.shape)
-    for i in range(A.shape[0]):
-        K[i,i] = np.sum(A[i,:])
-        
-    return K
-
 def calcular_vector_K(A):
     # Función para calcular el vector de Grado con la funcion de Matriz K
     # A: Matriz de adyacencia
@@ -57,18 +49,6 @@ def valor_2E(A):
     # Retorna el valor E
     
     return sum(sum(A))
-
-def construye_adyacencia(D,m):
-    # Función que construye la matriz de adyacencia del grafo de museos
-    # D matriz de distancias, m cantidad de links por nodo
-    # Retorna la matriz de adyacencia como un numpy.
-    D = D.copy()
-    l = [] # Lista para guardar las filas
-    for fila in D: # recorriendo las filas, anexamos vectores lógicos
-        l.append(fila<=fila[np.argsort(fila)[m]] ) # En realidad, elegimos todos los nodos que estén a una distancia menor o igual a la del m-esimo más cercano
-    A = np.asarray(l).astype(int) # Convertimos a entero
-    np.fill_diagonal(A,0) # Borramos diagonal para eliminar autolinks
-    return(A)
 
 def GraficoCiudadModularidad(A, museos, barrios, comunidades, conexiones):
     # Funcion para graficar ranking con el mapa de la
@@ -143,52 +123,6 @@ def GraficosCiudadCortesConjunto(D, museos, barrios, m ,cortes, x,y):
 
 #> Pueden importar las cosas del template 1, no hace falta copiar y pegar
 # Gallar > Noted, despues veo que se queda y que no
-
-# Funciones de Inversion
-def calculaLU(A):
-    # matriz es una matriz de NxN
-    # Retorna la factorización LU a través de una lista con dos matrices L y U de NxN.
-    m=A.shape[0]
-    n=A.shape[1]
-    Ac = A.copy()
-
-    # Chequeanos que la matriz es cuadrada
-    if m!=n:
-        print('Matriz no cuadrada')
-        return
-
-    # Una vez que sabemos que la matriz esta bien, empezamos a calular la Factorizacion
-    for j in range(n):
-        for i in range(j+1, n):
-            l = Ac[i,j]/Ac[j,j]
-            Ac[i,j:] = Ac[i,j:] - l * Ac[j,j:]
-            Ac[i,j] = l
-
-    
-    # Con la factorizacion hecha, asignamos nuestra L y U como corresponda
-    L = np.tril(Ac,-1) + np.eye(m)
-    U = np.triu(Ac)
-
-    return L, U
-
-def inversa_desde_LU(A):
-    # Función para calcular la matriz invertida a partir de la descomposicion LU de una Matriz
-    # A: Matriz a invertir
-    # Retorna la matriz A^-1
-    L, U = calculaLU(A)
-    n = L.shape[0]
-    I = np.eye(n)
-    inv_A = np.zeros((n, n))
-
-    for i in range(n):
-        # Resolvemos L y = e_i
-        y = solve_triangular(L, I[:, i], lower=True)
-        # Resolvemos U x = y
-        x = solve_triangular(U, y)
-        # Guardamos la columna resultante de la inversa
-        inv_A[:, i] = x
-
-    return inv_A
 
 # Funciones del TP
 def calcula_L(A):
