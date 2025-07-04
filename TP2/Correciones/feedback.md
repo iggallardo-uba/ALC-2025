@@ -21,11 +21,6 @@ Detalles:
 
 # Pendientes Gallar
 
-## Pendiente, volver a correr el jupyter
-
-- En el 3 del TP1 borraron los mapas del alfa. Los tenían hechos en la primer entrega así que no me queda del todo claro
-  por que los mataron. Vuelvan a ponerlos (y acuérdense de juntarlos como hicieron con los de m).
-
 ## Pendiente chequear y arreglar
 
 - Falta la parte del notebook del 3. También tienen la implementación de modularidad_iterativo mal, les dejé un comentario en el código.
@@ -48,3 +43,8 @@ Detalles:
 
 - Tienen un bug en el código de metpotI2 (se los marqué en el código) y por eso el autovalor les está dando mal y el mu
   está afectando al resultado.
+
+## Solucionado, nada mas faltaba hacer la funcion de grafico
+
+- En el 3 del TP1 borraron los mapas del alfa. Los tenían hechos en la primer entrega así que no me queda del todo claro
+  por que los mataron. Vuelvan a ponerlos (y acuérdense de juntarlos como hicieron con los de m).

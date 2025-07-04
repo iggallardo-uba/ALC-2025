@@ -340,3 +340,73 @@ def GraficoCiudadesPorConexiones(D, conexiones, museos, barrios, titulo, subtitu
   plt.show()
 
   return puntuaciones,np.array(list(set(principales)))
+
+
+def GraficoCiudadesPorAlphasP3(A, alphas, museos, nombreMuseos, barrios, titulo, subtitulo, analizarGeneral,analizarMaximos):
+  # Funcion para graficar ranking con el mapa de la
+  # D: Matriz de adyacencia
+  # Ranking: Puntuacion de cada ciudad
+  # Museos y Barios: Variables para informacion Geografica
+  # Retorna: Valor del numero de condicion 1 de la matriz
+
+  # Variables analisis
+  analisisGeneral = []
+  analisisMaximos = []
+
+  #Creacion unica de variables de los graficos
+  G_layout = {i:v for i,v in enumerate(zip(museos.to_crs("EPSG:22184").get_coordinates()['x'],museos.to_crs("EPSG:22184").get_coordinates()['y']))}
+  factor_escala = 1e4 # Escalamos los nodos 10 mil veces para que sean bien visibles
+
+  # Crear una figura con x filas y y columnas
+  fig, axes = plt.subplots(3, 3, figsize=(16, 16))
+
+  # Título principal
+  fig.suptitle(titulo, fontsize=16, fontweight='bold')
+
+  for i in range(0,2):
+     for j in range(0,3):
+      posicion = i+j+(3-1)*i 
+      print(posicion)
+      
+      G = nx.from_numpy_array(A) # Construimos la red a partir de la matriz de adyacencia
+      barrios.to_crs("EPSG:22184").boundary.plot(color='gray', ax=axes[i,j]) # Graficamos Los barrios
+      pr = calcula_pagerank(A, alphas[posicion])  #Este va a ser su score Page Rank. Ahora lo reemplazamos con un vector al azar
+
+      pr = pr/pr.sum() # Normalizamos para que sume 1
+
+      if len(pr.shape) == 2:
+        pr = pr[0]
+
+      nx.draw_networkx(G,G_layout,ax = axes[i,j],node_size = pr*factor_escala,with_labels=False)
+      axes[i, j].set_title(subtitulo + str(alphas[posicion]))
+      
+      # Analisis
+      for k in range(0, analizarGeneral.size):
+        analisisGeneral.append({"alpha": alphas[posicion], "museo": analizarGeneral[k], "puntuacion":pr[analizarGeneral[k]], "nombre":nombreMuseos[analizarGeneral[k]]})
+        analisisMaximos.append({"alpha": alphas[posicion], "museo": analizarMaximos[k], "puntuacion":pr[analizarMaximos[k]], "nombre":nombreMuseos[analizarMaximos[k]]})
+  
+  G = nx.from_numpy_array(A) # Construimos la red a partir de la matriz de adyacencia
+  barrios.to_crs("EPSG:22184").boundary.plot(color='gray', ax=axes[2,1]) # Graficamos Los barrios
+  pr = calcula_pagerank(A, alphas[posicion+1])  #Este va a ser su score Page Rank. Ahora lo reemplazamos con un vector al azar
+
+  pr = pr/pr.sum() # Normalizamos para que sume 1
+
+  if len(pr.shape) == 2:
+    pr = pr[0]
+    
+  nx.draw_networkx(G,G_layout,ax = axes[2,1],node_size = pr*factor_escala,with_labels=False)
+  axes[2, 1].set_title(subtitulo + str(alphas[posicion+1]))
+
+  # Analisis
+  for k in range(0, analizarGeneral.size):
+        analisisGeneral.append({"alpha": alphas[posicion+1], "museo": analizarGeneral[k], "puntuacion":pr[analizarGeneral[k]], "nombre":nombreMuseos[analizarGeneral[k]]})
+        analisisMaximos.append({"alpha": alphas[posicion+1], "museo": analizarMaximos[k], "puntuacion":pr[analizarMaximos[k]], "nombre":nombreMuseos[analizarMaximos[k]]})
+
+  # Ajustar el espacio entre los subgráficos
+  plt.tight_layout(rect=[0, 0, 1, 0.96])
+
+  # Mostrar la figura
+  plt.show()
+
+  return analisisGeneral, analisisMaximos
+
