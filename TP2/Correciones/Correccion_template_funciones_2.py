@@ -325,6 +325,7 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
     # Acá empieza lo bueno
     if R.shape[0] == 1: # Si llegamos al último nivel
         return nombres_s
+    
     else:
         # Calculamos el primer autovector y autovalor de R para la modularidad
         v,l,_ = metpot1(R) # Primer autovector y autovalor de R
@@ -345,6 +346,41 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
             
             return [Rp,Rm]
         else:
+            ## Hacemos como con L, pero usando directamente R para poder mantener siempre la misma matriz de modularidad
+            
+            # Primero, separamos las comunidades en positivo y negativo
+            ComunidadP = [nombres_s[i] for i in range(len(v)) if v[i] == 1] # Parte de R asociada a los valores positivos de v
+            ComunidadN = [nombres_s[i] for i in range(len(v)) if v[i] == -1] # Parte asociada a los valores negativos de v
+            
+            # Segundo, pasamos las matrices de Adyaciencias segun la comunidad
+            Apositiva = A[np.ix_(v == 1, v == 1)]
+            Anegativa = A[np.ix_(v == -1, v == -1)]
+            
+            # Tercero, separamos las R Asociadas
+            Rp = R[np.ix_(v == 1, v == 1)]
+            Rn = R[np.ix_(v == -1, v == -1)]
+
+            # Y calculamos sus autovectores correspondientes
+            vPositivo,lp,_ = metpot1(Rp)  # autovector principal de Rp
+            vNegativo,lm,_ = metpot1(Rn) # autovector principal de Rm
+        
+            # Cuarto, formateamos los autovectores para que sea mas facil su operacion
+            vp = np.where(vPositivo > 0, 1, -1)
+            vn = np.where(vNegativo > 0, 1, -1)
+        
+            # Calculamos el cambio en Q que se produciría al hacer esta partición
+            Q1 = 0
+            if not all(vp>0) or all(vp<0):
+               Q1 = np.sum(Rp[vp>0,:][:,vp>0]) + np.sum(Rp[vp<0,:][:,vp<0])
+            if not all(vn>0) or all(vn<0):
+                Q1 += np.sum(Rn[vn>0,:][:,vn>0]) + np.sum(Rn[vn<0,:][:,vn<0])
+            if Q0 >= Q1: # Si al partir obtuvimos un Q menor, devolvemos la última partición que hicimos
+                return([[ni for ni,vi in zip(nombres_s,v) if vi>0],[ni for ni,vi in zip(nombres_s,v) if vi<0]])
+            else:
+                # Sino, repetimos para los subniveles
+                return modularidad_iterativo(Apositiva, Rp, ComunidadP) +modularidad_iterativo(Anegativa, Rn, ComunidadN)
+            
+            
             # Hacemos como con L, pero usando directamente R para poder mantener siempre la misma matriz de modularidad
             
             # Primero, separamos las comunidades en positivo y negativo
