@@ -21,7 +21,7 @@ Detalles:
 
 # Pendientes Gallar
 
-## Pendiente chequear y arreglar
+## Pendiente, arreglado, queda chequear martes
 
 - Falta la parte del notebook del 3. También tienen la implementación de modularidad_iterativo mal, les dejé un comentario en el código.
 

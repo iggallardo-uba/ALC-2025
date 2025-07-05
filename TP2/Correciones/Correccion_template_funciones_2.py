@@ -356,6 +356,13 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
             Apositiva = A[np.ix_(v == 1, v == 1)]
             Anegativa = A[np.ix_(v == -1, v == -1)]
             
+            # Valen >
+            #> Estan calculando dos particiones en el mismo paso y entonces se estan salteando masomenos la mitad 
+            #> de los cortes. Por cada paso deberia haber solo una R que parten en 2. Ustedes tienen 3.
+            #> El codigo deberia ser casi igual al del laplaciano porque el procedimiento no cambia mucho.
+            
+            # Gallar > Ya modifique el metodo creo qie para lo que pide, chequear el martes
+            
             # Tercero, separamos las R Asociadas
             Rp = R[np.ix_(v == 1, v == 1)]
             Rn = R[np.ix_(v == -1, v == -1)]
@@ -391,10 +398,7 @@ def modularidad_iterativo(A=None,R=None,nombres_s=None):
             Apositiva = A[np.ix_(v == 1, v == 1)]
             Anegativa = A[np.ix_(v == -1, v == -1)]
             
-            # Valen >
-            #> Estan calculando dos particiones en el mismo paso y entonces se estan salteando masomenos la mitad 
-            #> de los cortes. Por cada paso deberia haber solo una R que parten en 2. Ustedes tienen 3.
-            #> El codigo deberia ser casi igual al del laplaciano porque el procedimiento no cambia mucho.
+            
 
             # Tercero, calculamos las Matrices de modularidad de cada comunidad
             Rpositiva = calcula_R(Apositiva)
